@@ -4,8 +4,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "postinstall": "node scripts/setup-models.mjs"
+    "start": "next start"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.0",

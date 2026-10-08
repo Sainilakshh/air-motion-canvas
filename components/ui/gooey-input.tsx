@@ -64,18 +64,18 @@ export function GooeyInput({ placeholder = "Type to search...", className, class
   return (
     <div className={cn("relative flex items-center justify-center", className, classNames?.root)}>
       <GooeyFilter filterId={filterId} blur={gooeyBlur} />
-      <div className={cn("relative flex h-10 items-center justify-center", classNames?.filterWrap)} style={{ filter: `url(#${filterId})` }}>
-        <motion.div className={cn("flex h-10 items-center justify-center", classNames?.buttonRow)} variants={buttonVariants} initial="collapsed" animate={isExpanded ? "expanded" : "collapsed"} transition={transition}>
+      <div className={cn("relative flex h-12 items-center justify-center", classNames?.filterWrap)} style={{ filter: `url(#${filterId})` }}>
+        <motion.div className={cn("flex h-12 items-center justify-center", classNames?.buttonRow)} variants={buttonVariants} initial="collapsed" animate={isExpanded ? "expanded" : "collapsed"} transition={transition}>
           <button type="button" disabled={disabled} onClick={handleExpand}
-            className={cn("flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-4 text-sm font-medium outline-none transition-[color,box-shadow] focus-visible:ring-2 focus-visible:ring-[#ff6a4d] disabled:pointer-events-none disabled:opacity-50", surfaceClass, classNames?.trigger)}>
+            className={cn("flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-5 text-base font-medium outline-none transition-[color,box-shadow] focus-visible:ring-2 focus-visible:ring-[#ff6a4d] disabled:pointer-events-none disabled:opacity-50", surfaceClass, classNames?.trigger)}>
             {!isExpanded ? <SearchIcon layoutId={iconLayoutId} /> : null}
             <motion.input layoutId={inputLayoutId} ref={inputRef} type="search" enterKeyHint="search" autoComplete="off" value={searchText} onChange={handleChange} onBlur={handleBlur} onKeyDown={onKeyDown}
               disabled={disabled || !isExpanded} placeholder={placeholder}
-              className={cn("h-full min-w-0 flex-1 bg-transparent text-sm text-zinc-100 outline-none", isExpanded ? "placeholder:text-zinc-500" : "pointer-events-none placeholder:text-zinc-400", classNames?.input)} />
+              className={cn("h-full min-w-0 flex-1 bg-transparent text-base text-zinc-100 outline-none", isExpanded ? "placeholder:text-zinc-500" : "pointer-events-none placeholder:text-zinc-400", classNames?.input)} />
           </button>
         </motion.div>
-        <motion.div className={cn("absolute top-1/2 left-0 flex size-10 -translate-y-1/2 items-center justify-center", classNames?.bubble)} variants={iconBubbleVariants} initial="collapsed" animate={isExpanded ? "expanded" : "collapsed"} transition={transition}>
-          <div className={cn("flex size-10 items-center justify-center rounded-full", surfaceClass, classNames?.bubbleSurface)}><SearchIcon layoutId={iconLayoutId} /></div>
+        <motion.div className={cn("absolute top-1/2 left-0 flex size-12 -translate-y-1/2 items-center justify-center", classNames?.bubble)} variants={iconBubbleVariants} initial="collapsed" animate={isExpanded ? "expanded" : "collapsed"} transition={transition}>
+          <div className={cn("flex size-12 items-center justify-center rounded-full", surfaceClass, classNames?.bubbleSurface)}><SearchIcon layoutId={iconLayoutId} /></div>
         </motion.div>
       </div>
     </div>

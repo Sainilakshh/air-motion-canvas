@@ -5,5 +5,5 @@ export const runtime = 'nodejs';
 export async function GET(req: Request) {
   const locked = guard(req);
   if (locked) return locked;
-  return NextResponse.json({ ok: true, ai: !!process.env.GEMINI_API_KEY && !!process.env.GEMINI_MODEL, footage: !!(process.env.PEXELS_API_KEY || process.env.PIXABAY_API_KEY) });
+  return NextResponse.json({ ok: true, ai: !!process.env.GEMINI_API_KEY && !!process.env.GEMINI_MODEL, footage: !!process.env.PIXABAY_API_KEY });
 }

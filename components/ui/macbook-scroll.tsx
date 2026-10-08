@@ -18,7 +18,7 @@ export const MacbookScroll = ({ src, showGradient, title, badge }: any) => {
   const textOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
   return (
     <div ref={ref} className="flex min-h-[200vh] shrink-0 scale-[0.35] transform flex-col items-center justify-start py-0 [perspective:800px] sm:scale-50 md:scale-100 md:py-80">
-      <motion.h2 style={{ translateY: textTransform, opacity: textOpacity }} className="mb-20 text-center text-3xl font-bold text-neutral-800 dark:text-white">{title}</motion.h2>
+      <motion.h2 style={{ translateY: textTransform, opacity: textOpacity }} className="mb-20 text-center text-4xl font-bold leading-[1.1] tracking-tight text-neutral-800 md:text-7xl dark:text-white">{title}</motion.h2>
       <Lid src={src} scaleX={scaleX} scaleY={scaleY} rotate={rotate} translate={translate} />
       <div className="relative -z-10 h-[22rem] w-[32rem] overflow-hidden rounded-2xl bg-gray-200 dark:bg-[#272729]">
         <div className="relative h-10 w-full"><div className="absolute inset-x-0 mx-auto h-4 w-[80%] bg-[#050505]" /></div>

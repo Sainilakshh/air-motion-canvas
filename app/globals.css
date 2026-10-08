@@ -65,3 +65,15 @@ h1, h2 { letter-spacing: -0.035em; }
 .btn { border-color: #2a2a30; }
 input[type="search"]::-webkit-search-cancel-button { filter: invert(1) opacity(.6); cursor: pointer; }
 code { font-family: ui-monospace, monospace; }
+
+/* Theme v3: desktop type scale + real fonts (next/font variables set in layout.tsx) */
+body { font-family: var(--font-body), Inter, ui-sans-serif, system-ui, sans-serif; font-size: 16px; line-height: 1.6; letter-spacing: 0; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+h1, h2, h3, h4 { font-family: var(--font-display), var(--font-body), ui-sans-serif, system-ui, sans-serif; line-height: 1.12; }
+h1, h2 { letter-spacing: -0.025em; }
+.hud { font: 500 13px/1.3 var(--font-body), Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: 0; text-transform: none; color: #a1a1aa; }
+.btn { font-size: 15px; font-weight: 500; line-height: 1.2; padding: 10px 20px; }
+.btn-main { font-weight: 600; }
+.inp { font-size: 15px; line-height: 1.4; padding: 10px 14px; }
+textarea.inp { line-height: 1.55; resize: vertical; }
+.inp::placeholder { color: #71717a; }
+.btn:focus-visible, .inp:focus-visible { outline: 2px solid #ff6a4d; outline-offset: 2px; }
