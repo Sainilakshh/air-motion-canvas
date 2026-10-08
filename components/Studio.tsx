@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { IconCheck, IconLock } from '@tabler/icons-react';
 import { loadProjects, saveProjects, type Proj } from '@/lib/projects';
 import AirCanvas from './AirCanvas';
 import { GooeyInput } from './ui/gooey-input';
@@ -11,7 +12,7 @@ import { heuristicAnim } from '@/lib/animation';
 import type { Hook, Item, RecognizeResult, Shot } from '@/lib/types';
 
 const AI_DOWN = 'AI temporarily unavailable — your work is safe.';
-const NEED_CODE = 'Access code needed for live AI — demo concepts still work.';
+const NEED_CODE = 'This idea needs live AI, which is locked. Enter the access code above, or try one of the demo concepts below.';
 const NO_FOOTAGE = 'No relevant footage found — try another keyword.';
 const UNCLEAR = "Couldn't confidently understand the drawing — try a simpler sketch, or pick an alternative below.";
 const code = () => { try { return localStorage.getItem('amc.code') || ''; } catch { return ''; } };
@@ -65,13 +66,37 @@ export default function Studio() {
   const [showProj, setShowProj] = useState(false);
   const [savedAt, setSavedAt] = useState(0);
   const [codeVal, setCodeVal] = useState('');
+  const [access, setAccess] = useState<'checking' | 'live' | 'locked'>('checking');
+  const [accessInfo, setAccessInfo] = useState({ ai: true, footage: true });
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [searchW, setSearchW] = useState(420);
+  const searchRef = useRef<HTMLDivElement>(null);
   const runId = useRef(0);
   const projRef = useRef<Proj[]>([]); projRef.current = projects;
   const platRef = useRef<PK>(platform); platRef.current = platform;
   const P = PRESETS[platform];
 
   useEffect(() => { setProjects(loadProjects()); setCodeVal(code()); }, []);
-  const warn = (m: string) => setMsg((x) => (x.includes(m) ? x : [...x, m]));
+  // Code check: kisi bhi code change par (debounced) /api/access se poochho
+  useEffect(() => {
+    setAccess('checking');
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch('/api/access', { headers: { 'x-access-code': codeVal } });
+        if (r.ok) { const d = await r.json().catch(() => ({})); setAccessInfo({ ai: d.ai !== false, footage: d.footage !== false }); setAccess('live'); } else setAccess('locked');
+      } catch { setAccess('locked'); }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [codeVal]);
+  useEffect(() => {
+    const el = searchRef.current; if (!el) return;
+    const ro = new ResizeObserver(() => setSearchW(Math.max(200, el.clientWidth - 56)));
+    ro.observe(el); setSearchW(Math.max(200, el.clientWidth - 56));
+    return () => ro.disconnect();
+  }, []);
+  // Ek hi banner: locked/AI-down ke messages ek dusre ko replace karte hain, stack nahi hote
+  const SOFT = [AI_DOWN, NEED_CODE];
+  const warn = (m: string) => setMsg((x) => (x.includes(m) ? x : SOFT.includes(m) ? [...x.filter((y) => !SOFT.includes(y)), m] : [...x, m]));
   const setB = (k: keyof typeof busy, v: boolean) => setBusy((b) => ({ ...b, [k]: v }));
   const patch = (id: string, p: Partial<Shot>) => setShots((s) => s.map((x) => (x.id === id ? { ...x, ...p } : x)));
 
@@ -99,9 +124,10 @@ export default function Studio() {
       setUnd(null); setB('und', true);
       try { r = await post('/api/recognize', { text: input.text }); }
       catch (e: any) {
-        if (e?.message === '401') warn(NEED_CODE);
+        const locked = e?.message === '401';
         const d = findDemo(input.text || '');
-        if (d) { r = d.r; warn('AI temporarily unavailable — showing demo data for this concept.'); } else warn(AI_DOWN);
+        if (d) { r = d.r; warn(locked ? 'Demo mode — showing built-in data for this concept. Enter the access code for live AI.' : 'AI temporarily unavailable — showing demo data for this concept.'); }
+        else { warn(locked ? NEED_CODE : AI_DOWN); setFailDraw(true); }
       }
       if (!live()) return;
       setB('und', false);
@@ -222,22 +248,40 @@ export default function Studio() {
 
   return (
     <main className="max-w-5xl mx-auto p-4 space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <div><h1 className="text-3xl font-bold"><span className="grad">Air Motion Canvas</span></h1><p className="hud mt-1">Rough idea → structured visual story</p></div>
-        <input type="password" value={codeVal} placeholder="Access code" onChange={(e) => { setCodeVal(e.target.value); try { localStorage.setItem('amc.code', e.target.value); } catch {} }} className="inp w-40 text-sm" />
-      </div>
-      <div className="flex gap-2">
-        <GooeyInput value={idea} onValueChange={setIdea} defaultOpen expandedWidth={420} className="flex-1" placeholder="Your idea, e.g. A 30-second video about why rockets are expensive"
-          onKeyDown={(e: any) => e.key === 'Enter' && idea.trim() && run({ text: idea.trim() })} />
-        <button className="btn btn-main" disabled={!idea.trim()} onClick={() => run({ text: idea.trim() })}>Start</button>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div><h1 className="text-3xl font-bold tracking-tight">Air Motion Canvas</h1><p className="hud mt-1.5">Rough idea → structured visual story</p></div>
+        <div className="relative">
+          <div className="flex items-center gap-2 rounded-full border border-[#26262c] bg-[#131316] py-1 pl-3 pr-1">
+            {access === 'live' ? <IconCheck size={16} className="text-emerald-400" /> : <IconLock size={16} className={access === 'checking' ? 'text-zinc-500' : 'text-coral'} />}
+            <input type="password" value={codeVal} placeholder="Access code" aria-label="Access code" autoComplete="off" onChange={(e) => { setCodeVal(e.target.value); try { localStorage.setItem('amc.code', e.target.value); } catch {} }} className="w-32 bg-transparent text-sm outline-none placeholder:text-zinc-500" />
+            <button type="button" onClick={() => setHelpOpen((v) => !v)} className={`rounded-full px-3 py-1 text-xs font-medium ${access === 'live' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/5 text-zinc-300'}`}>
+              {access === 'live' ? 'Live AI' : access === 'checking' ? 'Checking…' : 'Demo mode'}
+            </button>
+          </div>
+          {helpOpen && (
+            <div className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-[#232328] bg-[#131316] p-4 text-xs leading-relaxed text-zinc-300 shadow-xl">
+              <p className="mb-1 font-semibold text-white">{access === 'live' ? 'Live AI is on' : 'Demo mode'}</p>
+              {access === 'live'
+                ? <p>Code sahi hai. Gemini + B-roll chalenge{!accessInfo.ai ? ' (lekin GEMINI_API_KEY / GEMINI_MODEL server par set nahi hain)' : ''}{!accessInfo.footage ? ' (PEXELS/PIXABAY key set nahi hai, footage nahi aayegi)' : ''}.</p>
+                : <p>Bina code ke sirf 8 demo concepts chalte hain: Rocket, Earth, Solar, Tree, Car, Ball, House, Water. Live AI ke liye server par jo <code className="text-coral">DEMO_ACCESS_CODE</code> set hai wahi code yahan dalo.</p>}
+              <button className="mt-2 text-zinc-500 underline" onClick={() => setHelpOpen(false)}>Close</button>
+            </div>)}
+        </div>
+      </header>
+      <div className="flex flex-wrap items-center gap-2">
+        <div ref={searchRef} className="min-w-[260px] flex-1">
+          <GooeyInput value={idea} onValueChange={setIdea} defaultOpen expandedWidth={searchW} expandedOffset={48} className="w-full !justify-start" placeholder="Your idea, e.g. A 30-second video about why rockets are expensive"
+            onKeyDown={(e: any) => e.key === 'Enter' && idea.trim() && run({ text: idea.trim() })} />
+        </div>
+        <button className="btn btn-main px-6" disabled={!idea.trim()} onClick={() => run({ text: idea.trim() })}>Start</button>
         <button className="btn" onClick={() => setDraw((d) => !d)}>{draw ? 'Hide air drawing' : 'Air drawing (optional)'}</button>
       </div>
-      <div className="flex flex-wrap gap-2 items-center text-sm">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
         {(Object.keys(PRESETS) as PK[]).map((k) => <button key={k} onClick={() => applyPreset(k)} className={`btn ${platform === k ? 'btn-main' : ''}`}>{PRESETS[k].label}</button>)}
-        <label className="flex items-center gap-1 opacity-80">Target <input type="number" min={5} value={target} onChange={(e) => setTarget(Number(e.target.value) || 0)} className="inp w-16" />s</label>
+        <label className="flex items-center gap-2 text-zinc-400">Target <input type="number" min={5} value={target} onChange={(e) => setTarget(Number(e.target.value) || 0)} className="inp w-16 text-center" />s</label>
         {shots.length > 0 && <button className="btn text-xs" onClick={() => fit(target)}>Fit shots to target</button>}
         <span className="flex-1" />
-        {savedAt > 0 && curId && <span className="text-xs opacity-50">Saved {new Date(savedAt).toLocaleTimeString()}</span>}
+        {savedAt > 0 && curId && <span className="text-xs text-zinc-500">Saved {new Date(savedAt).toLocaleTimeString()}</span>}
         <button className="btn" onClick={newProject}>New</button>
         <button className="btn" onClick={saveProject}>Save</button>
         <button className="btn" onClick={() => setShowProj((v) => !v)}>My Projects ({projects.length})</button>
@@ -246,7 +290,7 @@ export default function Studio() {
         <div className="glass rounded-xl p-3 space-y-2 text-sm">
           {projects.length === 0 && <p className="opacity-60">No saved projects yet — press Save.</p>}
           {projects.map((p) => (
-            <div key={p.id} className={`flex gap-2 items-center ${p.id === curId ? 'text-orange-300' : ''}`}>
+            <div key={p.id} className={`flex gap-2 items-center ${p.id === curId ? 'text-coral' : ''}`}>
               <input value={p.name} onChange={(e) => renameProject(p.id, e.target.value)} className="inp flex-1" />
               <span className="text-xs opacity-50 hidden sm:inline">{new Date(p.updated).toLocaleString()}</span>
               <button className="btn text-xs" onClick={() => openProject(p)}>Open</button>
@@ -258,9 +302,9 @@ export default function Studio() {
         <div className="relative h-32 rounded-2xl overflow-hidden bg-neutral-900 border border-white/5">
           <ImageGenerationLoader effect="scale-wave" easing="ease-in-out" text={busy.und ? 'Analysing' : busy.fact ? 'Researching' : 'Writing'} cellSize={3} gap={1} bandHeight={48} colors={['#ff7a62', '#8b5cf6']} />
         </div>)}
-      {msg.map((m) => <p key={m} className="glass rounded-lg px-3 py-2 text-sm">{m}</p>)}
+      {msg.map((m) => <p key={m} className="rounded-2xl border border-[#2a2a30] bg-[#131316] px-4 py-3 text-sm text-zinc-300">{m}</p>)}
       {failDraw && (
-        <div className="flex flex-wrap gap-2 items-center text-sm"><span className="opacity-70">Or pick a concept:</span>
+        <div className="flex flex-wrap gap-2 items-center text-sm"><span className="text-zinc-400">Try a demo concept:</span>
           {DEMO.map((d) => <button key={d.r.labels[0].name} className="btn text-xs" onClick={() => { setIdea(d.r.labels[0].name); run({ text: d.r.labels[0].name }); }}>{d.r.labels[0].name}</button>)}</div>)}
 
       {/* 1. Understanding + generated visual (appears first) */}

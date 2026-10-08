@@ -57,3 +57,11 @@ h1, h2 { letter-spacing: -0.035em; }
 .btn-main { background: linear-gradient(180deg, #ff6a4d, #f23d2b); color: #fff; border: 0; font-weight: 600; box-shadow: 0 6px 20px -8px rgba(242, 61, 43, .6); }
 .btn-main:hover { background: linear-gradient(180deg, #ff7a60, #f54b3a); }
 .inp { background: #1a1a1f; border: 1px solid #26262c; border-radius: 12px; }
+
+/* Theme v2.1: leftover orange/peach tones -> neutral + coral */
+.hud { color: #a1a1aa; }
+.hud-c { border-color: rgba(255, 106, 77, .8); }
+.stage { border: 1px solid #232328; box-shadow: none; }
+.btn { border-color: #2a2a30; }
+input[type="search"]::-webkit-search-cancel-button { filter: invert(1) opacity(.6); cursor: pointer; }
+code { font-family: ui-monospace, monospace; }

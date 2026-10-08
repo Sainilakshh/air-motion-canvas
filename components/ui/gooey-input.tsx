@@ -58,8 +58,8 @@ export function GooeyInput({ placeholder = "Type to search...", className, class
   const handleChange = useCallback((e: any) => setSearchText(e.target.value), [setSearchText]);
   const handleBlur = useCallback(() => { if (!searchText) setExpanded(false); }, [searchText, setExpanded]);
 
-  // Colors: warm off-white pill on the near-black UI (original used shadcn tokens)
-  const surfaceClass = "bg-[#f5efe6] text-[#0a0908] shadow-sm ring-1 ring-orange-400/40";
+  // Colors: dark bento pill (original used shadcn tokens)
+  const surfaceClass = "bg-[#16161a] text-zinc-100 ring-1 ring-white/10";
 
   return (
     <div className={cn("relative flex items-center justify-center", className, classNames?.root)}>
@@ -67,11 +67,11 @@ export function GooeyInput({ placeholder = "Type to search...", className, class
       <div className={cn("relative flex h-10 items-center justify-center", classNames?.filterWrap)} style={{ filter: `url(#${filterId})` }}>
         <motion.div className={cn("flex h-10 items-center justify-center", classNames?.buttonRow)} variants={buttonVariants} initial="collapsed" animate={isExpanded ? "expanded" : "collapsed"} transition={transition}>
           <button type="button" disabled={disabled} onClick={handleExpand}
-            className={cn("flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-4 text-sm font-medium outline-none transition-[color,box-shadow] focus-visible:ring-2 focus-visible:ring-orange-400 disabled:pointer-events-none disabled:opacity-50", surfaceClass, classNames?.trigger)}>
+            className={cn("flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-full px-4 text-sm font-medium outline-none transition-[color,box-shadow] focus-visible:ring-2 focus-visible:ring-[#ff6a4d] disabled:pointer-events-none disabled:opacity-50", surfaceClass, classNames?.trigger)}>
             {!isExpanded ? <SearchIcon layoutId={iconLayoutId} /> : null}
             <motion.input layoutId={inputLayoutId} ref={inputRef} type="search" enterKeyHint="search" autoComplete="off" value={searchText} onChange={handleChange} onBlur={handleBlur} onKeyDown={onKeyDown}
               disabled={disabled || !isExpanded} placeholder={placeholder}
-              className={cn("h-full min-w-0 flex-1 bg-transparent text-sm text-[#0a0908] outline-none", isExpanded ? "placeholder:text-[#0a0908]/50" : "pointer-events-none placeholder:text-[#0a0908]/80", classNames?.input)} />
+              className={cn("h-full min-w-0 flex-1 bg-transparent text-sm text-zinc-100 outline-none", isExpanded ? "placeholder:text-zinc-500" : "pointer-events-none placeholder:text-zinc-400", classNames?.input)} />
           </button>
         </motion.div>
         <motion.div className={cn("absolute top-1/2 left-0 flex size-10 -translate-y-1/2 items-center justify-center", classNames?.bubble)} variants={iconBubbleVariants} initial="collapsed" animate={isExpanded ? "expanded" : "collapsed"} transition={transition}>

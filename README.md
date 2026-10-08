@@ -48,6 +48,13 @@ Saare /api routes `x-access-code` header maangte hain. Dev mein code set na ho t
 - Vercel: set the 5 env vars from the Keys table, then redeploy. All API routes have `maxDuration = 60`.
 
 ## Round 3
-- Intro: CardSpotlight cards (WebGL `CanvasRevealEffect`, mounts only on hover; only on `/`, never on the MediaPipe page). Deps: `three`, `@react-three/fiber`.
-- Studio: "Preview strip" (Apple-style cards carousel) above the committed storyboard; click a card for the full shot.
-- The carousel is an equivalent written from the demo API (original `apple-cards-carousel` file was not provided). Paste the original over `components/ui/apple-cards-carousel.tsx` if you want it exact (keep `Carousel` and `Card` exports).
+- `components/ui/apple-cards-carousel.tsx` = your original Aceternity file (TypeScript, dark only). Used on `/` ("Made for every platform") and in Studio ("Preview strip").
+- Intro: CardSpotlight cards (WebGL `CanvasRevealEffect`, mounts only on hover; only on `/`, never on the MediaPipe page).
+- Studio UI: search bar fills the row (gooey bubble stays on the left), one banner at a time, demo-concept chips whenever AI is locked/down, Access code box with a Live AI / Demo mode badge (`GET /api/access`).
+
+## Access code: how to use
+1. Make any long random string, e.g. `openssl rand -hex 16`.
+2. Local: put it in `.env.local` as `DEMO_ACCESS_CODE=...` (or leave empty in dev, then everything is open).
+3. Vercel: Project -> Settings -> Environment Variables: `DEMO_ACCESS_CODE`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `PEXELS_API_KEY` (+ optional `PIXABAY_API_KEY`), then Redeploy.
+4. Open `/studio`, type the same code in the "Access code" box. Badge turns to "Live AI".
+Without the code: Demo mode (8 built-in concepts only). In production with no `DEMO_ACCESS_CODE` set, all APIs stay locked on purpose.
