@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { loadProjects, saveProjects, type Proj } from '@/lib/projects';
 import AirCanvas from './AirCanvas';
 import { GooeyInput } from './ui/gooey-input';
+import { Card, Carousel } from './ui/apple-cards-carousel';
+import { ImageGenerationLoader } from './ui/image-generation-loader';
 import AnimationStage from './AnimationStage';
 import { DEMO, fallbackHooks, fallbackShots, findDemo, normalizeShot } from '@/lib/demo';
 import { heuristicAnim } from '@/lib/animation';
@@ -252,6 +254,10 @@ export default function Studio() {
             </div>))}
         </div>)}
       {draw && <AirCanvas onResult={onDrawResult} onError={onDrawError} />}
+      {(busy.und || busy.fact || busy.plan || busy.script) && (
+        <div className="relative h-32 rounded-2xl overflow-hidden bg-neutral-900 border border-white/5">
+          <ImageGenerationLoader effect="scale-wave" easing="ease-in-out" text={busy.und ? 'Analysing' : busy.fact ? 'Researching' : 'Writing'} cellSize={3} gap={1} bandHeight={48} colors={['#ff7a62', '#8b5cf6']} />
+        </div>)}
       {msg.map((m) => <p key={m} className="glass rounded-lg px-3 py-2 text-sm">{m}</p>)}
       {failDraw && (
         <div className="flex flex-wrap gap-2 items-center text-sm"><span className="opacity-70">Or pick a concept:</span>
@@ -343,6 +349,7 @@ export default function Studio() {
                 <span>{st}–{st + d}s</span><span className="opacity-70">Shot {String(i + 1).padStart(2, '0')}</span></button>);
             })}
           </div>
+          <div><p className="hud mb-1">Preview strip</p><Carousel items={shots.map((s, i) => <Card key={s.id} index={i} card={{ category: `Shot ${String(i + 1).padStart(2, '0')} · ${s.duration}s`, title: s.title, src: s.broll?.thumb || '', content: <ShotDetail s={s} /> }} />)} /></div>
           {shots.map((s, i) => (
             <div id={'shot-' + s.id} key={s.id} className="glass rounded-xl p-3 grid md:grid-cols-[130px_130px_1fr] gap-3">
               <div><p className="hud mb-1">Visual</p><AnimationStage anim={s.anim} sketch={stageFor(s)} ratio={P.ratio} compact />
@@ -381,3 +388,12 @@ export default function Studio() {
     </main>
   );
 }
+
+const ShotDetail = ({ s }: { s: Shot }) => (
+  <div className="space-y-3 text-sm md:text-base">
+    <p><span className="hud mr-2">Script</span>{s.line || '—'}</p>
+    <p><span className="hud mr-2">Visual</span>{s.visual || '—'}</p>
+    <p><span className="hud mr-2">Fact</span>{s.fact || '—'}</p>
+    <p><span className="hud mr-2">B-roll</span>{s.broll ? <a className="underline" href={s.broll.link} target="_blank" rel="noreferrer">{s.broll.credit}</a> : s.brollIdea || '—'}</p>
+  </div>
+);

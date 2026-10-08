@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { HoveredLink, Menu, MenuItem } from '@/components/ui/navbar-menu';
+import { MacbookScroll } from '@/components/ui/macbook-scroll';
+import { CardSpotlight } from '@/components/ui/card-spotlight';
 import { Timeline } from '@/components/ui/timeline';
 
 const P = ({ children }: { children: React.ReactNode }) => <p className="mb-8 text-xs md:text-sm text-neutral-800 dark:text-neutral-200 max-w-xl">{children}</p>;
@@ -35,12 +37,12 @@ export default function Intro() {
         </Menu>
       </div>
       <a href="/studio" className="btn fixed right-4 top-6 z-50 text-sm bg-black/60">Skip to app →</a>
-      <section className="min-h-screen flex flex-col items-center justify-center text-center px-4">
-        <h1 className="text-5xl md:text-7xl font-bold"><span className="grad">Air Motion Canvas</span></h1>
-        <p className="mt-4 text-lg md:text-2xl opacity-80 max-w-2xl">From a rough idea to a structured visual story.</p>
-        <div className="mt-8 flex gap-3"><a href="/studio" className="btn btn-main px-6 py-2">Open Studio</a><a href="#how" className="btn px-6 py-2">How it works</a></div>
-      </section>
+      <div className="w-full overflow-hidden bg-[#09090b]"><MacbookScroll src="/intro/screen.png" showGradient={false} title={<span>Idea in. <span style={{ color: "#ff6a4d" }}>Storyboard</span> out.</span>} /></div>
       <section id="how"><Timeline data={steps} heading="How Air Motion Canvas works" sub="From rough idea to storyboard in six steps." /></section>
+      <section className="py-20 px-4"><div className="mx-auto grid max-w-6xl gap-6 md:grid-cols-3">
+        {[['Private by design', 'Hand tracking runs locally in your browser. Webcam video is never uploaded or stored.'], ['Fails gracefully', 'If AI or footage is unavailable, you get a clear message and demo data instead of a broken screen.'], ['Works without a camera', 'Text input is the default. Mouse and touch drawing are always available.']].map(([h, t]) => (
+          <CardSpotlight key={h} className="h-64 w-full rounded-3xl"><p className="relative z-20 text-xl font-bold text-white">{h}</p><p className="relative z-20 mt-3 text-neutral-300">{t}</p></CardSpotlight>))}
+      </div></section>
       <section className="py-24 text-center"><a href="/studio" className="btn btn-main px-8 py-3 text-lg">Try it now</a></section>
     </main>
   );

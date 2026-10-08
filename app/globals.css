@@ -45,3 +45,15 @@ body { background: var(--bg); color: var(--fg); font-family: ui-sans-serif, syst
 .fx-smoke { position: absolute; top: 88%; width: 10%; aspect-ratio: 1; border-radius: 50%; background: rgba(245, 239, 230, .25); filter: blur(4px); animation: puff 1.8s ease-out infinite; opacity: 0; }
 @keyframes puff { 0% { transform: translate(0, 0) scale(.5); opacity: .6; } 100% { transform: translate(-40%, 90%) scale(1.8); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .fx-stars, .fx-rays, .fx-float, .fx-bubble, .fx-wave, .fx-trail, .fx-smoke { animation: none; } }
+
+/* Theme v2 (dark only): clean bento surfaces, coral CTA, tight bold type */
+:root { --bg: #09090b; --fg: #f4f4f5; --a1: #ff6a4d; --a2: #f23d2b; }
+body { background: #09090b !important; background-image: none !important; color: #f4f4f5; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: -0.01em; }
+h1, h2 { letter-spacing: -0.035em; }
+.glass { background: #131316; border: 1px solid #232328; border-radius: 20px; box-shadow: none; }
+.grad { background: none; -webkit-text-fill-color: currentColor; color: #f4f4f5; }
+.btn { border-radius: 9999px; border: 1px solid #2a2a30; background: #16161a; padding: 6px 16px; }
+.btn:hover { background: #1e1e23; }
+.btn-main { background: linear-gradient(180deg, #ff6a4d, #f23d2b); color: #fff; border: 0; font-weight: 600; box-shadow: 0 6px 20px -8px rgba(242, 61, 43, .6); }
+.btn-main:hover { background: linear-gradient(180deg, #ff7a60, #f54b3a); }
+.inp { background: #1a1a1f; border: 1px solid #26262c; border-radius: 12px; }

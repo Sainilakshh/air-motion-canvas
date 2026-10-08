@@ -106,7 +106,7 @@ export default function AirCanvas({ onResult, onError }: { onResult: (r: Recogni
             if (p >= 1) { clear(); fistAt = 0; }
           } else fistAt = 0;
           if (stable === 'thumbs' && now - lastProc > 3000) { lastProc = now; process(); }
-          oc.strokeStyle = 'rgba(251,146,60,.6)'; oc.lineWidth = 2;
+          oc.strokeStyle = 'rgba(255,106,77,.6)'; oc.lineWidth = 2;
           for (const c of HandLandmarker.HAND_CONNECTIONS) { oc.beginPath(); oc.moveTo(l[c.start].x * W, l[c.start].y * H); oc.lineTo(l[c.end].x * W, l[c.end].y * H); oc.stroke(); }
           oc.fillStyle = '#fff'; oc.beginPath(); oc.arc(sm.x, sm.y, stable === 'pinch' ? 8 : 5, 0, 7); oc.fill();
         } else if (stable !== 'none') { stable = 'none'; cand = 'none'; count = 0; cur = null; sm = null; setGesture('none'); }
@@ -122,7 +122,7 @@ export default function AirCanvas({ onResult, onError }: { onResult: (r: Recogni
         if (mo.m === 'pulse') { const k = 1 + Math.sin(t * 4) * 0.08; sc.scale(k, k); }
         sc.translate(-mo.cx, -mo.cy);
       }
-      for (const [w, col] of [[14, 'rgba(251,146,60,.25)'], [4, '#fed7aa']] as const) {
+      for (const [w, col] of [[14, 'rgba(255,106,77,.25)'], [4, '#ffd2c8']] as const) {
         sc.lineWidth = w; sc.strokeStyle = col;
         for (const s of strokes.current) { sc.beginPath(); s.forEach((p, i) => (i ? sc.lineTo(p.x, p.y) : sc.moveTo(p.x, p.y))); sc.stroke(); }
       }

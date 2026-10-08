@@ -46,3 +46,8 @@ Saare /api routes `x-access-code` header maangte hain. Dev mein code set na ho t
 - Extra deps: `motion`, `clsx`, `tailwind-merge`.
 - Model + wasm: after `npm install` (postinstall downloads them), they are NOT gitignored anymore, so `git add` includes them for the Vercel build.
 - Vercel: set the 5 env vars from the Keys table, then redeploy. All API routes have `maxDuration = 60`.
+
+## Round 3
+- Intro: CardSpotlight cards (WebGL `CanvasRevealEffect`, mounts only on hover; only on `/`, never on the MediaPipe page). Deps: `three`, `@react-three/fiber`.
+- Studio: "Preview strip" (Apple-style cards carousel) above the committed storyboard; click a card for the full shot.
+- The carousel is an equivalent written from the demo API (original `apple-cards-carousel` file was not provided). Paste the original over `components/ui/apple-cards-carousel.tsx` if you want it exact (keep `Carousel` and `Card` exports).

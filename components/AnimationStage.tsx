@@ -58,9 +58,9 @@ export default function AnimationStage({ anim, sketch, ratio = '16 / 9', label, 
   const fx = new Set(anim.effects);
   const subject = (
     <div className="relative flex items-center justify-center" style={{ width: '100%', height: '100%' }}>
-      {kind === 'img' && <img src={sketch} alt="" className="max-h-[62%] max-w-[62%] object-contain" style={{ mixBlendMode: 'screen', filter: 'drop-shadow(0 0 8px rgba(251,146,60,.7))' }} />}
-      {kind === 'svg' && <div style={{ width: '46%', aspectRatio: '1', filter: 'drop-shadow(0 0 10px rgba(251,146,60,.5))' }} dangerouslySetInnerHTML={{ __html: svg }} />}
-      {kind === 'emoji' && <span style={{ fontSize: 'clamp(1.6rem, 24cqw, 7rem)', lineHeight: 1, filter: 'drop-shadow(0 0 18px rgba(251,146,60,.55))' }}>{anim.emoji || '✨'}</span>}
+      {kind === 'img' && <img src={sketch} alt="" className="max-h-[62%] max-w-[62%] object-contain" style={{ mixBlendMode: 'screen', filter: 'drop-shadow(0 0 8px rgba(255,106,77,.7))' }} />}
+      {kind === 'svg' && <div style={{ width: '46%', aspectRatio: '1', filter: 'drop-shadow(0 0 10px rgba(255,106,77,.5))' }} dangerouslySetInnerHTML={{ __html: svg }} />}
+      {kind === 'emoji' && <span style={{ fontSize: 'clamp(1.6rem, 24cqw, 7rem)', lineHeight: 1, filter: 'drop-shadow(0 0 18px rgba(255,106,77,.55))' }}>{anim.emoji || '✨'}</span>}
       {fx.has('trail') && <span className={`fx-trail ${anim.emoji === '🚀' && kind === 'emoji' ? 'diag' : ''}`} style={{ top: '62%' }} />}
       {fx.has('smoke') && [0, 0.6, 1.2].map((d) => <span key={d} className="fx-smoke" style={{ left: '30%', top: '60%', animationDelay: `${d}s` }} />)}
     </div>
