@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server';
 import { guard } from '@/lib/auth';
+import { gemini } from '@/lib/gemini';
 export const runtime = 'nodejs';
-// Studio ye route code check karne ke liye call karta hai (live AI unlocked ya demo mode).
+export const maxDuration = 60;
+let cached: { t: number; v: string } | null = null;
+// Studio ye route code check + (deep=1) ek chhota live Gemini test ke liye call karta hai.
 export async function GET(req: Request) {
   const locked = guard(req);
   if (locked) return locked;
-  return NextResponse.json({ ok: true, ai: !!process.env.GEMINI_API_KEY && !!process.env.GEMINI_MODEL, footage: !!process.env.PIXABAY_API_KEY });
+  const base = { ok: true, ai: !!process.env.GEMINI_API_KEY && !!process.env.GEMINI_MODEL, footage: !!process.env.PIXABAY_API_KEY };
+  if (new URL(req.url).searchParams.get('deep') !== '1') return NextResponse.json(base);
+  if (cached && Date.now() - cached.t < 30000) return NextResponse.json({ ...base, aiStatus: cached.v });
+  let v = 'ok';
+  try { await gemini([{ text: 'Reply with the single word ok.' }], false, 0); } catch (e: any) { v = e?.code || 'ERROR'; console.error('[access] ai check', v, e?.message); }
+  cached = { t: Date.now(), v };
+  return NextResponse.json({ ...base, aiStatus: v });
 }

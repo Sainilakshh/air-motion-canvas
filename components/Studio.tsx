@@ -17,11 +17,18 @@ const NEED_CODE = 'This idea needs live AI, which is locked. Enter the access co
 const NO_FOOTAGE = 'No relevant footage found — try another keyword.';
 const UNCLEAR = "Couldn't confidently understand the drawing — try a simpler sketch, or pick an alternative below.";
 const code = () => { try { return localStorage.getItem('amc.code') || ''; } catch { return ''; } };
+const HINT: Record<string, string> = {
+  QUOTA: 'Gemini quota reached — wait a minute and retry.', NOT_FOUND: 'Model not found — check GEMINI_MODEL on the server.',
+  BAD_KEY: 'Gemini key rejected — check GEMINI_API_KEY on the server.', NO_KEY: 'Server is missing GEMINI_API_KEY.', NO_MODEL: 'Server is missing GEMINI_MODEL.',
+  TIMEOUT: 'The AI took too long — retry.', EMPTY: 'The AI returned no answer — try rephrasing.', BAD_JSON: 'The AI answer was malformed — retry.',
+  UPSTREAM: 'Gemini is having trouble — retry shortly.', NETWORK: 'Server could not reach Gemini — retry.',
+};
+let lastAiCode = '';
 const uid = () => Math.random().toString(36).slice(2, 8);
 const post = async (url: string, body: any) => {
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-access-code': code() }, body: JSON.stringify(body) });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(r.status === 401 ? '401' : d.error || 'fail');
+  if (!r.ok) { if (d.code) lastAiCode = d.code; throw new Error(r.status === 401 ? '401' : d.error || 'fail'); }
   return d;
 };
 type Fact = { title: string; extract: string; url?: string; source: string };
@@ -68,6 +75,7 @@ export default function Studio() {
   const [savedAt, setSavedAt] = useState(0);
   const [codeVal, setCodeVal] = useState('');
   const [access, setAccess] = useState<'checking' | 'live' | 'locked'>('checking');
+  const [aiStatus, setAiStatus] = useState('ok');
   const [accessInfo, setAccessInfo] = useState({ ai: true, footage: true });
   const [helpOpen, setHelpOpen] = useState(false);
   const [searchW, setSearchW] = useState(420);
@@ -83,8 +91,8 @@ export default function Studio() {
     setAccess('checking');
     const t = setTimeout(async () => {
       try {
-        const r = await fetch('/api/access', { headers: { 'x-access-code': codeVal } });
-        if (r.ok) { const d = await r.json().catch(() => ({})); setAccessInfo({ ai: d.ai !== false, footage: d.footage !== false }); setAccess('live'); } else setAccess('locked');
+        const r = await fetch('/api/access?deep=1', { headers: { 'x-access-code': codeVal } });
+        if (r.ok) { const d = await r.json().catch(() => ({})); setAccessInfo({ ai: d.ai !== false, footage: d.footage !== false }); setAccess('live'); const st = d.aiStatus || 'ok'; setAiStatus(st); if (st !== 'ok') { lastAiCode = st; warn(AI_DOWN); } } else setAccess('locked');
       } catch { setAccess('locked'); }
     }, 400);
     return () => clearTimeout(t);
@@ -96,8 +104,11 @@ export default function Studio() {
     return () => ro.disconnect();
   }, []);
   // Ek hi banner: locked/AI-down ke messages ek dusre ko replace karte hain, stack nahi hote
-  const SOFT = [AI_DOWN, NEED_CODE];
-  const warn = (m: string) => setMsg((x) => (x.includes(m) ? x : SOFT.includes(m) ? [...x.filter((y) => !SOFT.includes(y)), m] : [...x, m]));
+  const isSoft = (y: string) => y.startsWith(AI_DOWN) || y === NEED_CODE;
+  const warn = (m0: string) => {
+    const m = m0 === AI_DOWN && HINT[lastAiCode] ? AI_DOWN + ' ' + HINT[lastAiCode] : m0;
+    setMsg((x) => (x.includes(m) ? x : isSoft(m) ? [...x.filter((y) => !isSoft(y)), m] : [...x, m]));
+  };
   const setB = (k: keyof typeof busy, v: boolean) => setBusy((b) => ({ ...b, [k]: v }));
   const patch = (id: string, p: Partial<Shot>) => setShots((s) => s.map((x) => (x.id === id ? { ...x, ...p } : x)));
 
@@ -256,7 +267,7 @@ export default function Studio() {
             {access === 'live' ? <IconCheck size={16} className="text-emerald-400" /> : <IconLock size={16} className={access === 'checking' ? 'text-zinc-500' : 'text-coral'} />}
             <input type="password" value={codeVal} placeholder="Access code" aria-label="Access code" autoComplete="off" onChange={(e) => { setCodeVal(e.target.value); try { localStorage.setItem('amc.code', e.target.value); } catch {} }} className="w-32 bg-transparent text-[15px] outline-none placeholder:text-zinc-500" />
             <button type="button" onClick={() => setHelpOpen((v) => !v)} className={`rounded-full px-3 py-1 text-sm font-medium ${access === 'live' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/5 text-zinc-300'}`}>
-              {access === 'live' ? 'Live AI' : access === 'checking' ? 'Checking…' : 'Demo mode'}
+              {access === 'live' ? (aiStatus !== 'ok' ? 'AI issue' : 'Live AI') : access === 'checking' ? 'Checking…' : 'Demo mode'}
             </button>
           </div>
           {helpOpen && (

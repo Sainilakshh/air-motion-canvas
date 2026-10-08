@@ -12,6 +12,8 @@ export function guard(req: Request) {
 }
 // Production mein raw error client ko nahi jaata, sirf server log mein.
 export function fail(e: any, status = 502) {
-  console.error('[api]', e?.message || e);
-  return NextResponse.json({ error: prod ? 'Service temporarily unavailable' : String(e?.message || e) }, { status });
+  const code = e?.code || (e instanceof SyntaxError ? 'BAD_JSON' : 'ERROR');
+  console.error('[api]', code, e?.message || e);
+  // code (QUOTA, NOT_FOUND...) safe hai, secrets nahi; raw message production mein nahi jaata
+  return NextResponse.json({ error: prod ? 'Service temporarily unavailable' : String(e?.message || e), code }, { status });
 }

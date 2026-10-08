@@ -74,7 +74,7 @@ export function GooeyInput({ placeholder = "Type to search...", className, class
               className={cn("h-full min-w-0 flex-1 bg-transparent text-base text-zinc-100 outline-none", isExpanded ? "placeholder:text-zinc-500" : "pointer-events-none placeholder:text-zinc-400", classNames?.input)} />
           </button>
         </motion.div>
-        <motion.div className={cn("absolute top-1/2 left-0 flex size-12 -translate-y-1/2 items-center justify-center", classNames?.bubble)} variants={iconBubbleVariants} initial="collapsed" animate={isExpanded ? "expanded" : "collapsed"} transition={transition}>
+        <motion.div className={cn("absolute top-0 left-0 flex size-12 items-center justify-center", classNames?.bubble)} variants={iconBubbleVariants} initial="collapsed" animate={isExpanded ? "expanded" : "collapsed"} transition={transition}>
           <div className={cn("flex size-12 items-center justify-center rounded-full", surfaceClass, classNames?.bubbleSurface)}><SearchIcon layoutId={iconLayoutId} /></div>
         </motion.div>
       </div>
