@@ -28,7 +28,7 @@ function SearchIcon({ layoutId }: any) {
 const transition: any = { duration: 0.4, type: "spring", bounce: 0.25 };
 const iconBubbleVariants = { collapsed: { scale: 0, opacity: 0 }, expanded: { scale: 1, opacity: 1 } };
 
-export function GooeyInput({ placeholder = "Type to search...", className, classNames, collapsedWidth = 115, expandedWidth = 200, expandedOffset = 50, gooeyBlur = 5, value: valueProp, defaultValue = "", onValueChange, onOpenChange, onKeyDown, defaultOpen = false, disabled = false }: any) {
+export function GooeyInput({ placeholder = "Type to search...", className, classNames, collapsedWidth = 115, expandedWidth = 200, expandedOffset = 50, gooeyBlur = 5, value: valueProp, defaultValue = "", onValueChange, onOpenChange, onKeyDown, defaultOpen = false, keepOpen = false, disabled = false }: any) {
   const reactId = useId();
   const safeId = reactId.replace(/:/g, "");
   const filterId = `gooey-filter-${safeId}`;
@@ -56,7 +56,7 @@ export function GooeyInput({ placeholder = "Type to search...", className, class
   const buttonVariants = useMemo(() => ({ collapsed: { width: collapsedWidth, marginLeft: 0 }, expanded: { width: expandedWidth, marginLeft: expandedOffset } }), [collapsedWidth, expandedWidth, expandedOffset]);
   const handleExpand = useCallback(() => { if (!disabled) setExpanded(true); }, [disabled, setExpanded]);
   const handleChange = useCallback((e: any) => setSearchText(e.target.value), [setSearchText]);
-  const handleBlur = useCallback(() => { if (!searchText) setExpanded(false); }, [searchText, setExpanded]);
+  const handleBlur = useCallback(() => { if (!searchText && !keepOpen) setExpanded(false); }, [searchText, keepOpen, setExpanded]);
 
   // Colors: dark bento pill (original used shadcn tokens)
   const surfaceClass = "bg-[#16161a] text-zinc-100 ring-1 ring-white/10";

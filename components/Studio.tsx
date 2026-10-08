@@ -266,7 +266,7 @@ export default function Studio() {
           <div className="flex items-center gap-2 rounded-full border border-[#26262c] bg-[#131316] py-1 pl-3 pr-1">
             {access === 'live' ? <IconCheck size={16} className="text-emerald-400" /> : <IconLock size={16} className={access === 'checking' ? 'text-zinc-500' : 'text-coral'} />}
             <input type="password" value={codeVal} placeholder="Access code" aria-label="Access code" autoComplete="off" onChange={(e) => { setCodeVal(e.target.value); try { localStorage.setItem('amc.code', e.target.value); } catch {} }} className="w-32 bg-transparent text-[15px] outline-none placeholder:text-zinc-500" />
-            <button type="button" onClick={() => setHelpOpen((v) => !v)} className={`rounded-full px-3 py-1 text-sm font-medium ${access === 'live' ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/5 text-zinc-300'}`}>
+            <button type="button" onClick={() => setHelpOpen((v) => !v)} className={`rounded-full px-3 py-1 text-sm font-medium ${access === 'live' ? (aiStatus !== 'ok' ? 'bg-amber-500/15 text-amber-300' : 'bg-emerald-500/15 text-emerald-300') : 'bg-white/5 text-zinc-300'}`}>
               {access === 'live' ? (aiStatus !== 'ok' ? 'AI issue' : 'Live AI') : access === 'checking' ? 'Checking…' : 'Demo mode'}
             </button>
           </div>
@@ -282,7 +282,7 @@ export default function Studio() {
       </header>
       <div className="flex flex-wrap items-center gap-2">
         <div ref={searchRef} className="min-w-[260px] flex-1">
-          <GooeyInput value={idea} onValueChange={setIdea} defaultOpen expandedWidth={searchW} expandedOffset={56} className="w-full !justify-start" placeholder="Your idea, e.g. A 30-second video about why rockets are expensive"
+          <GooeyInput value={idea} onValueChange={setIdea} defaultOpen keepOpen expandedWidth={searchW} expandedOffset={56} className="w-full !justify-start" placeholder="Your idea, e.g. A 30-second video about why rockets are expensive"
             onKeyDown={(e: any) => e.key === 'Enter' && idea.trim() && run({ text: idea.trim() })} />
         </div>
         <button className="btn btn-main px-6" disabled={!idea.trim()} onClick={() => run({ text: idea.trim() })}>Start</button>
