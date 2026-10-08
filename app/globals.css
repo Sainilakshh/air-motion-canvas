@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+:root { --bg: #0a0908; --fg: #f5efe6; --a1: #fb923c; --a2: #ec4899; }
+body { background: var(--bg); color: var(--fg); font-family: ui-sans-serif, system-ui, sans-serif; background-image: radial-gradient(circle at 15% -10%, rgba(236,72,153,.10), transparent 40%), radial-gradient(circle at 90% 0%, rgba(251,146,60,.08), transparent 35%); background-attachment: fixed; }
+.glass { background: rgba(20, 16, 14, 0.85); border: 1px solid rgba(251, 146, 60, 0.3); box-shadow: 0 0 20px rgba(236, 72, 153, 0.08); }
+.grad { background: linear-gradient(90deg, var(--a1), var(--a2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.btn { border-radius: 9999px; padding: 4px 14px; border: 1px solid rgba(251, 146, 60, 0.5); transition: background .2s; }
+.btn:hover { background: rgba(251, 146, 60, 0.15); }
+.btn:disabled { opacity: .4; pointer-events: none; }
+.btn-main { background: linear-gradient(90deg, var(--a1), var(--a2)); color: #0a0908; font-weight: 600; border: 0; }
+.inp { background: rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 4px 8px; outline: none; }
+.inp:focus { box-shadow: 0 0 0 1px var(--a1); }
+.hud { font: 10px/1 ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; color: rgba(254, 215, 170, .75); }
+.hud-c { position: absolute; width: 14px; height: 14px; border: 0 solid rgba(251, 146, 60, .8); pointer-events: none; }
+.hud-c.tl { top: 8px; left: 8px; border-top-width: 2px; border-left-width: 2px; }
+.hud-c.tr { top: 8px; right: 8px; border-top-width: 2px; border-right-width: 2px; }
+.hud-c.bl { bottom: 8px; left: 8px; border-bottom-width: 2px; border-left-width: 2px; }
+.hud-c.br { bottom: 8px; right: 8px; border-bottom-width: 2px; border-right-width: 2px; }
+
+/* Animation stage: backdrops + lightweight CSS-only effects (transform/opacity only) */
+.stage { position: relative; overflow: hidden; border-radius: 14px; border: 1px solid rgba(251, 146, 60, .35); box-shadow: 0 0 22px rgba(236, 72, 153, .1); container-type: inline-size; }
+.bd-space { background: radial-gradient(circle at 70% 20%, #2a1740 0, #0d0a14 55%, #050407 100%); }
+.bd-sky { background: linear-gradient(#170f28, #5b2a5e 55%, #e0735a 100%); }
+.bd-ocean { background: linear-gradient(#07151c, #0b3347 70%, #0e4a5e); }
+.bd-ground { background: linear-gradient(#0f0b14 0, #1e1424 64%, #17110d 64%, #0a0908 100%); }
+.bd-sun { background: radial-gradient(circle at 50% 50%, #7a3a12 0, #2a130a 45%, #0a0908 80%); }
+.bd-night { background: radial-gradient(circle at 50% 40%, #1d1411 0, #0a0908 70%); }
+.bd-none { background: #0a0908; }
+.fx-stars { position: absolute; inset: 0; animation: twinkle 3s ease-in-out infinite alternate;
+  background-image: radial-gradient(1.5px 1.5px at 12% 22%, #fff, transparent), radial-gradient(1px 1px at 30% 70%, #fff, transparent), radial-gradient(1.5px 1.5px at 55% 15%, #fed7aa, transparent), radial-gradient(1px 1px at 78% 40%, #fff, transparent), radial-gradient(1.5px 1.5px at 90% 80%, #fbcfe8, transparent), radial-gradient(1px 1px at 65% 88%, #fff, transparent), radial-gradient(1px 1px at 8% 60%, #fff, transparent), radial-gradient(1.5px 1.5px at 42% 38%, #fff, transparent); }
+@keyframes twinkle { from { opacity: .35; } to { opacity: .95; } }
+.fx-rays { position: absolute; left: 50%; top: 50%; width: 120cqw; height: 120cqw; margin: -60cqw 0 0 -60cqw; border-radius: 50%; animation: rot 40s linear infinite;
+  background: repeating-conic-gradient(rgba(251, 191, 36, .2) 0 7deg, transparent 7deg 22deg); -webkit-mask-image: radial-gradient(circle, #000 0, transparent 65%); mask-image: radial-gradient(circle, #000 0, transparent 65%); }
+@keyframes rot { to { transform: rotate(360deg); } }
+.fx-float { position: absolute; bottom: -8%; color: #fed7aa; opacity: 0; animation: rise 5s ease-in infinite; }
+@keyframes rise { 0% { transform: translateY(0) scale(.6); opacity: 0; } 15% { opacity: .9; } 100% { transform: translateY(-110cqh) scale(1.1); opacity: 0; } }
+.fx-bubble { position: absolute; bottom: -6%; border: 1.5px solid rgba(165, 243, 252, .6); border-radius: 50%; opacity: 0; animation: rise 6s ease-in infinite; }
+.fx-wave { position: absolute; left: 0; bottom: 0; width: 200%; height: 26%; animation: slide 7s linear infinite; }
+@keyframes slide { to { transform: translateX(-50%); } }
+.fx-trail { position: absolute; top: 88%; left: 50%; width: 16%; height: 85%; transform: translateX(-50%); transform-origin: top center; border-radius: 50%; filter: blur(5px); pointer-events: none;
+  background: linear-gradient(rgba(251, 146, 60, .95), rgba(236, 72, 153, .5) 45%, transparent); animation: flame .2s ease-in-out infinite alternate; }
+.fx-trail.diag { transform: translateX(-50%) rotate(45deg); }
+@keyframes flame { from { opacity: .75; height: 70%; } to { opacity: 1; height: 90%; } }
+.fx-smoke { position: absolute; top: 88%; width: 10%; aspect-ratio: 1; border-radius: 50%; background: rgba(245, 239, 230, .25); filter: blur(4px); animation: puff 1.8s ease-out infinite; opacity: 0; }
+@keyframes puff { 0% { transform: translate(0, 0) scale(.5); opacity: .6; } 100% { transform: translate(-40%, 90%) scale(1.8); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .fx-stars, .fx-rays, .fx-float, .fx-bubble, .fx-wave, .fx-trail, .fx-smoke { animation: none; } }
