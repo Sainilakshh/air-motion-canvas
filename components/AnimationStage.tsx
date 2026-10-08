@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { sanitizeSvg } from '@/lib/animation';
 import type { AnimSpec, Primitive } from '@/lib/types';
 
@@ -30,9 +30,39 @@ function build(p: Primitive, kind: 'img' | 'svg' | 'emoji'): KF {
 
 const SPARK = [{ l: '15%', t: '0s' }, { l: '38%', t: '1.4s' }, { l: '62%', t: '2.6s' }, { l: '82%', t: '0.8s' }];
 
+// Sketch PNG white-on-black hai. Black ko transparent karte hain (luminance -> alpha), warna animated layers ke andar kala box dikhta hai.
+const cleanCache = new Map<string, string>();
+function useTransparentSketch(src?: string) {
+  const [out, setOut] = useState('');
+  useEffect(() => {
+    if (!src) { setOut(''); return; }
+    const hit = cleanCache.get(src);
+    if (hit) { setOut(hit); return; }
+    let dead = false;
+    const im = new Image();
+    im.onload = () => {
+      const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+      const g = c.getContext('2d'); if (!g) { setOut(src); return; }
+      g.drawImage(im, 0, 0);
+      const d = g.getImageData(0, 0, c.width, c.height), p = d.data;
+      for (let i = 0; i < p.length; i += 4) { const a = p[i]; p[i] = 255; p[i + 1] = 226; p[i + 2] = 214; p[i + 3] = a; }
+      g.putImageData(d, 0, 0);
+      const url = c.toDataURL('image/png');
+      if (cleanCache.size > 30) cleanCache.clear();
+      cleanCache.set(src, url);
+      if (!dead) setOut(url);
+    };
+    im.onerror = () => { if (!dead) setOut(src); };
+    im.src = src;
+    return () => { dead = true; };
+  }, [src]);
+  return out;
+}
+
 export default function AnimationStage({ anim, sketch, ratio = '16 / 9', label, compact = false }: { anim: AnimSpec; sketch?: string; ratio?: string; label?: string; compact?: boolean }) {
   const root = useRef<HTMLDivElement>(null);
   const layers = useRef<(HTMLDivElement | null)[]>([]);
+  const clean = useTransparentSketch(sketch);
   const kind: 'img' | 'svg' | 'emoji' = sketch ? 'img' : anim.svg ? 'svg' : 'emoji';
   const svg = kind === 'svg' ? sanitizeSvg(anim.svg) : '';
   const key = JSON.stringify(anim.primitives) + kind;
@@ -58,7 +88,7 @@ export default function AnimationStage({ anim, sketch, ratio = '16 / 9', label, 
   const fx = new Set(anim.effects);
   const subject = (
     <div className="relative flex items-center justify-center" style={{ width: '100%', height: '100%' }}>
-      {kind === 'img' && <img src={sketch} alt="" className="max-h-[62%] max-w-[62%] object-contain" style={{ mixBlendMode: 'screen', filter: 'drop-shadow(0 0 8px rgba(255,106,77,.7))' }} />}
+      {kind === 'img' && clean && <img src={clean} alt="" className="max-h-[62%] max-w-[62%] object-contain" style={{ filter: 'drop-shadow(0 0 8px rgba(255,106,77,.7))' }} />}
       {kind === 'svg' && <div style={{ width: '46%', aspectRatio: '1', filter: 'drop-shadow(0 0 10px rgba(255,106,77,.5))' }} dangerouslySetInnerHTML={{ __html: svg }} />}
       {kind === 'emoji' && <span style={{ fontSize: 'clamp(1.6rem, 24cqw, 7rem)', lineHeight: 1, filter: 'drop-shadow(0 0 18px rgba(255,106,77,.55))' }}>{anim.emoji || '✨'}</span>}
       {fx.has('trail') && <span className={`fx-trail ${anim.emoji === '🚀' && kind === 'emoji' ? 'diag' : ''}`} style={{ top: '62%' }} />}
