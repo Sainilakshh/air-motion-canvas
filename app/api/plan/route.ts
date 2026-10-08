@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { fail, guard } from '@/lib/auth';
 import { createHash } from 'crypto';
-import { gemini } from '@/lib/gemini';
+import { geminiJson } from '@/lib/gemini';
 import { SHOT_JSON, toShot } from '@/lib/shotSchema';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -19,7 +19,7 @@ Platform: ${platform} (${aspect}). Make ${shotMin} to ${shotMax} shots whose dur
 "shots":[${SHOT_JSON}]}
 Shots should tell a story (e.g. launch -> engine -> Earth from orbit -> cost/scale). Shock/Stat hook must not invent numbers beyond the facts.`;
   try {
-    const p = JSON.parse(await gemini([{ text: prompt }], true, 0.6));
+    const p = await geminiJson([{ text: prompt }], 0.6, 'plan');
     if (!Array.isArray(p.shots) || !p.shots.length) throw new Error('plan invalid');
     const out = {
       hooks: (p.hooks || []).slice(0, 4).map((x: any) => ({ style: String(x.style), text: String(x.text) })),

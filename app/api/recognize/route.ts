@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { fail, guard } from '@/lib/auth';
 import { createHash } from 'crypto';
-import { gemini } from '@/lib/gemini';
+import { geminiJson } from '@/lib/gemini';
 import { BACKDROPS, EFFECTS, PRIMITIVES, legacyMotion, normalizeAnim } from '@/lib/animation';
 import type { RecognizeResult } from '@/lib/types';
 export const runtime = 'nodejs';
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
     const parts = b64
       ? [{ text: 'You see a rough hand-drawn sketch (white lines on black). Interpret it semantically (what it is AND what it represents/does), not just an object label. ' + SCHEMA }, { inline_data: { mime_type: 'image/png', data: b64 } }]
       : [{ text: `A video creator's idea: "${t}". Extract the core concrete visual subject (not the whole sentence) and what it represents. ` + SCHEMA }];
-    const result = validate(JSON.parse(await gemini(parts, true, 0.2)));
+    const result = validate(await geminiJson(parts, 0.2, 'recognize'));
     cache.set(h, result);
     return NextResponse.json(result);
   } catch (e: any) {

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fail, guard } from '@/lib/auth';
-import { gemini } from '@/lib/gemini';
+import { geminiJson } from '@/lib/gemini';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
@@ -13,7 +13,7 @@ Shots (in order, with seconds): ${JSON.stringify(shots)}
 Write ONE concise, creator-friendly script line per shot (speakable within that shot's duration), same language as the idea. The first line must open with the selected hook. Do not invent facts.
 Return ONLY a JSON array of exactly ${shots.length} strings.`;
   try {
-    const lines = JSON.parse(await gemini([{ text: prompt }], true, 0.6));
+    const lines = await geminiJson([{ text: prompt }], 0.6, 'script');
     if (!Array.isArray(lines) || lines.length !== shots.length) throw new Error('script invalid');
     return NextResponse.json({ lines: lines.map(String) });
   } catch (e: any) {

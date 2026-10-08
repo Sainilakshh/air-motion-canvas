@@ -55,3 +55,50 @@ export async function gemini(parts: any[], json = true, temperature = 0.4): Prom
   const m = text.match(/[\[{][\s\S]*[\]}]/);  // extra text ke beech se JSON nikaalo
   return m ? m[0] : text;
 }
+
+// Gemini ke JSON mein kabhi trailing text, raw newline, trailing comma ya cut-off aa jaata hai: use theek karke parse karo.
+export function parseLooseJson(text: string): any {
+  try { return JSON.parse(text); } catch {}
+  const start = text.search(/[\[{]/);
+  if (start < 0) throw new SyntaxError('no json found');
+  let out = '', inStr = false, esc = false;
+  const stack: string[] = [];
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (inStr) {
+      if (esc) { esc = false; out += c; }
+      else if (c === '\\') { esc = true; out += c; }
+      else if (c === '"') { inStr = false; out += c; }
+      else if (c === '\n') out += '\\n';
+      else if (c === '\r') out += '';
+      else if (c === '\t') out += '\\t';
+      else out += c;
+      continue;
+    }
+    if (c === '"') inStr = true;
+    else if (c === '{') stack.push('}');
+    else if (c === '[') stack.push(']');
+    else if (c === '}' || c === ']') { stack.pop(); out += c; if (!stack.length) break; continue; }
+    out += c;
+  }
+  if (inStr) out += '"';  // cut-off string band karo
+  out = out.replace(/,\s*([}\]])/g, '$1').replace(/,\s*$/, '');
+  out += stack.reverse().join('');  // cut-off hone par khule brackets band karo
+  return JSON.parse(out);
+}
+
+// JSON jawab: parse fail ho to ek baar aur maangta hai (chhote, compact jawab ke saath).
+export async function geminiJson(parts: any[], temperature = 0.4, label = 'json'): Promise<any> {
+  const first = await gemini(parts, true, temperature);
+  try { return parseLooseJson(first); } catch {
+    console.error(`[${label}] bad json (will retry), head:`, first.slice(0, 300), '| tail:', first.slice(-120));
+  }
+  const retry = [...parts];
+  const i = retry.findIndex((p) => typeof p.text === 'string');
+  if (i >= 0) retry[i] = { text: retry[i].text + '\n\nIMPORTANT: your previous answer was not valid JSON. Return ONE compact, valid JSON value only. Escape quotes inside strings. If an "svg" field exists, set it to null.' };
+  const second = await gemini(retry, true, Math.min(temperature, 0.2));
+  try { return parseLooseJson(second); } catch {
+    console.error(`[${label}] bad json again, head:`, second.slice(0, 300));
+    throw new GeminiError('BAD_JSON', 'AI returned invalid JSON');
+  }
+}
