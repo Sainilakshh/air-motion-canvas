@@ -71,6 +71,11 @@ Without the code: Demo mode (8 built-in concepts only). In production with no `D
 - Whiteboard toolbar mein camera icon: pinch = draw, fist 1s = clear, thumbs-up = understand. MediaPipe browser mein local chalta hai. `npm install` ka postinstall wasm copy karta hai aur model download karta hai; na ho to runtime par CDN se load hota hai (internet chahiye).
 
 
+## R11
+- Language/tone selector (Hinglish, हिन्दी, English; casual/energetic/serious/funny/storytelling) -> plan, script, shot regenerate. Hindi/Hinglish ideas bhi chalte hain.
+- Footage picker: Gemini top thumbnails dekhke best chunta hai (`/api/pick`), reason shot par dikhta hai. Fail ho to purani ranking. Har shot par "Upload" se apni clip/photo.
+- Export menu: Video (.webm, captions burned in, silent), Captions (.srt), Shot list (.csv), Storyboard (.md), Script (.txt). Video export mein jin clips ka CORS band ho woh `/api/media` proxy se aate hain (Vercel limit ~4.5MB); na aaye to still/animation.
+
 ## R10
 - Intro: floating navbar + 200vh MacbookScroll hata ke sticky header, scroll-linked preview, naya hero.
 - Understanding: AI scan overlay (lock-on, label+confidence, keywords). Storyboard: script word-by-word preview + words/sec pace check, "Set Ns" fix.

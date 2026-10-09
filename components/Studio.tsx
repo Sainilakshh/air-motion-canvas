@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { IconArrowDown, IconArrowUp, IconCheck, IconDownload, IconPlayerPlay, IconPlus, IconRefresh, IconTrash } from '@tabler/icons-react';
+import { IconArrowDown, IconArrowUp, IconCheck, IconPlayerPlay, IconPlus, IconRefresh, IconTrash, IconUpload } from '@tabler/icons-react';
 import { loadProjects, saveProjects, type Proj } from '@/lib/projects';
 import AirCanvas from './AirCanvas';
 import ScanStage from '@/components/studio/ScanStage';
@@ -10,6 +10,8 @@ import Composer, { type PlatformOpt } from './studio/Composer';
 import PipelineRail, { type RailStep } from './studio/PipelineRail';
 import EmptyState from './studio/EmptyState';
 import Animatic from './studio/Animatic';
+import ExportMenu from './studio/ExportMenu';
+import { asLang, asTone, type Lang, type Tone } from '@/lib/style';
 import { ImageGenerationLoader } from './ui/image-generation-loader';
 import { DEMO, fallbackHooks, fallbackShots, findDemo, normalizeShot } from '@/lib/demo';
 import { heuristicAnim } from '@/lib/animation';
@@ -84,12 +86,17 @@ export default function Studio() {
   const [access, setAccess] = useState<'checking' | 'live' | 'locked'>('checking');
   const [aiStatus, setAiStatus] = useState('ok');
   const [accessInfo, setAccessInfo] = useState({ ai: true, footage: true });
+  const [lang, setLangS] = useState<Lang>('auto'), [tone, setToneS] = useState<Tone>('auto');
+  const setLang = (l: Lang) => { setLangS(l); try { localStorage.setItem('amc.lang', l); } catch {} };
+  const setTone = (t: Tone) => { setToneS(t); try { localStorage.setItem('amc.tone', t); } catch {} };
+  const shotsRef = useRef<Shot[]>([]); shotsRef.current = shots;
+  const aiRef = useRef(false); aiRef.current = access === 'live' && accessInfo.ai && aiStatus === 'ok';
   const runId = useRef(0);
   const projRef = useRef<Proj[]>([]); projRef.current = projects;
   const platRef = useRef<PK>(platform); platRef.current = platform;
   const P = PRESETS[platform];
 
-  useEffect(() => { setProjects(loadProjects()); setCodeVal(code()); }, []);
+  useEffect(() => { setProjects(loadProjects()); setCodeVal(code()); try { setLangS(asLang(localStorage.getItem('amc.lang'))); setToneS(asTone(localStorage.getItem('amc.tone'))); } catch {} }, []);
   // Code check: kisi bhi code change par (debounced) /api/access se poochho
   useEffect(() => {
     setAccess('checking');
@@ -111,6 +118,33 @@ export default function Studio() {
   const patch = (id: string, p: Partial<Shot>) => setShots((s) => s.map((x) => (x.id === id ? { ...x, ...p } : x)));
 
   // ---------- B-roll ----------
+  // Gemini thumbnails dekhke best footage chunta hai (fail ho to purani ranking hi rehti hai)
+  const aiPick = async (id: string, items: Item[]) => {
+    const sh = shotsRef.current.find((x) => x.id === id);
+    if (!sh || items.length < 2 || !aiRef.current) return;
+    try {
+      const d = await post('/api/pick', { concept: sh.concept, visual: sh.visual, line: sh.line, thumbs: items.map((i) => i.thumb) });
+      if (!Array.isArray(d.order)) return;
+      const ranked = items.map((it, i) => ({ it, sc: Number.isFinite(Number(d.order[i])) ? Number(d.order[i]) : -1, i })).sort((a, b) => b.sc - a.sc || a.i - b.i);
+      const good = ranked.filter((x) => x.sc >= 3).map((x) => x.it);
+      const out = good.length >= 2 ? good : ranked.map((x) => x.it);
+      setShots((a) => a.map((x) => (x.id === id && x.options === items ? { ...x, options: out, broll: out[0], pick: d.reason ? `AI pick: ${d.reason}` : 'AI pick' } : x)));
+    } catch {}
+  };
+  const frameOf = (url: string) => new Promise<string>((res) => {
+    const v = document.createElement('video'); v.muted = true; v.preload = 'auto'; v.src = url;
+    const fin = (u: string) => res(u);
+    v.onloadeddata = () => { v.currentTime = Math.min(0.2, (v.duration || 1) / 2); };
+    v.onseeked = () => { try { const c = document.createElement('canvas'); c.width = 480; c.height = Math.round(480 * (v.videoHeight / (v.videoWidth || 1))) || 270; c.getContext('2d')!.drawImage(v, 0, 0, c.width, c.height); fin(c.toDataURL('image/jpeg', 0.7)); } catch { fin(url); } };
+    v.onerror = () => fin(url);
+  });
+  const uploadClip = async (id: string, file: File) => {
+    if (!/^(video|image)\//.test(file.type)) { warn('Upload a video or an image file.'); return; }
+    if (file.size > 300e6) { warn('That file is too large (max 300 MB).'); return; }
+    const url = URL.createObjectURL(file), isV = file.type.startsWith('video/');
+    const it: Item = { thumb: isV ? await frameOf(url) : url, link: url, credit: 'Your upload (this session only)', preview: isV ? url : undefined };
+    setShots((a) => a.map((x) => (x.id === id ? { ...x, broll: it, options: [it, ...x.options.filter((o) => !o.link.startsWith('blob:'))].slice(0, 6), note: '', pick: 'Your clip' } : x)));
+  };
   const findBroll = async (id: string, kws: string[], page = 1) => {
     const q = kwq(kws);
     if (!q) { patch(id, { note: NO_FOOTAGE }); return; }
@@ -120,7 +154,8 @@ export default function Studio() {
       const d = await fetch(`/api/footage?q=${encodeURIComponent(q)}&page=${page}&o=${o}`, { headers: { 'x-access-code': code() } }).then((r) => r.json());
       const items: Item[] = d.items || [];
       if (!items.length && page > 1) { patch(id, { note: 'No more footage — try another keyword.', page: page - 1 }); return; }
-      patch(id, { options: items, broll: items[0] || null, note: d.error === 'locked' ? 'Access code needed for live B-roll.' : items.length ? '' : NO_FOOTAGE });
+      patch(id, { options: items, broll: items[0] || null, pick: undefined, note: d.error === 'locked' ? 'Access code needed for live B-roll.' : items.length ? '' : NO_FOOTAGE });
+      if (items.length > 1) setTimeout(() => aiPick(id, items), 0);
     } catch { patch(id, { note: NO_FOOTAGE }); }
   };
 
@@ -164,7 +199,7 @@ export default function Studio() {
     setB('plan', true);
     const [lo, hi] = P.shots;
     let p: { hooks: Hook[]; shots: Shot[] };
-    try { p = await post('/api/plan', { idea: planIdea, understanding: r, facts: f?.extract || '', platform: P.label, aspect: P.aspect, targetSeconds: target, shotMin: lo, shotMax: hi }); }
+    try { p = await post('/api/plan', { idea: planIdea, understanding: r, facts: f?.extract || '', platform: P.label, aspect: P.aspect, targetSeconds: target, shotMin: lo, shotMax: hi, lang, tone }); }
     catch (e: any) { if (e?.message === '401') warn(NEED_CODE); else warn(AI_DOWN); p = { hooks: [], shots: fallbackShots(r, f?.extract || '', hi, target) }; }
     if (!live()) return;
     if (!p.hooks.length) p.hooks = fallbackHooks(r);
@@ -177,7 +212,7 @@ export default function Studio() {
   const pickHook = async (t: string) => {
     setHook(t); setB('script', true);
     try {
-      const d = await post('/api/script', { idea: idea || und?.labels[0].name, concept: und?.labels[0].name, hook: t, facts: fact?.extract || '', shots: shots.map((s) => ({ title: s.title, visual: s.visual, fact: s.fact, seconds: s.duration })) });
+      const d = await post('/api/script', { idea: idea || und?.labels[0].name, concept: und?.labels[0].name, hook: t, facts: fact?.extract || '', shots: shots.map((s) => ({ title: s.title, visual: s.visual, fact: s.fact, seconds: s.duration })), lang, tone });
       setShots((s) => s.map((x, i) => ({ ...x, line: d.lines[i] ?? x.line })));
     } catch (e: any) {
       warn(e?.message === '401' ? NEED_CODE : AI_DOWN);
@@ -190,7 +225,7 @@ export default function Studio() {
   const regen = async (s: Shot, i: number) => {
     setRb((x) => ({ ...x, [s.id]: true }));
     try {
-      const d = await post('/api/shot', { idea: idea || und?.labels[0].name, concept: und?.labels[0].name, facts: fact?.extract || '', hook, platform: P.label, shot: { title: s.title, visual: s.visual, line: s.line, duration: s.duration }, others: shots.filter((x) => x.id !== s.id).map((x) => x.title), position: i });
+      const d = await post('/api/shot', { idea: idea || und?.labels[0].name, concept: und?.labels[0].name, facts: fact?.extract || '', hook, platform: P.label, shot: { title: s.title, visual: s.visual, line: s.line, duration: s.duration }, others: shots.filter((x) => x.id !== s.id).map((x) => x.title), position: i, lang, tone });
       patch(s.id, { title: d.title, concept: d.concept, visual: d.visual, brollIdea: d.brollIdea, keywords: d.keywords, fact: d.fact, line: d.line, anim: d.anim });
       findBroll(s.id, d.keywords);
     } catch (e: any) { warn(e?.message === '401' ? NEED_CODE : AI_DOWN); }
@@ -209,7 +244,7 @@ export default function Studio() {
   const stageFor = (s: Shot) => (sketch && und && s.concept.toLowerCase().includes(und.labels[0].name.toLowerCase()) ? sketch : undefined);
 
   // ---------- projects ----------
-  const snap = () => ({ idea, platform, target, und, sketch, fact, hooks, hook, shots, committed });
+  const snap = () => ({ idea, platform, target, lang, tone, und, sketch, fact, hooks, hook, committed, shots: shots.map((x) => (x.broll?.link.startsWith('blob:') || x.options.some((o) => o.link.startsWith('blob:')) ? { ...x, broll: x.broll?.link.startsWith('blob:') ? null : x.broll, options: x.options.filter((o) => !o.link.startsWith('blob:')) } : x)) });
   const persist = (id: string) => {
     const list = projRef.current.map((p) => (p.id === id ? { ...p, updated: Date.now(), data: snap() } : p));
     setProjects(list);
@@ -227,11 +262,11 @@ export default function Studio() {
     if (!curId) return;
     const t = setTimeout(() => persist(curId), 900);
     return () => clearTimeout(t);
-  }, [idea, platform, target, und, sketch, fact, hooks, hook, shots, committed, curId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [idea, platform, target, lang, tone, und, sketch, fact, hooks, hook, shots, committed, curId]); // eslint-disable-line react-hooks/exhaustive-deps
   const openProject = (p: Proj) => {
     runId.current++;
     const d = p.data || {};
-    setIdea(d.idea || ''); setPlatform(d.platform || 'reel'); setTarget(d.target || 30); setUnd(d.und || null); setSketch(d.sketch || ''); setFact(d.fact || null);
+    setIdea(d.idea || ''); setPlatform(d.platform || 'reel'); setTarget(d.target || 30); setLangS(asLang(d.lang)); setToneS(asTone(d.tone)); setUnd(d.und || null); setSketch(d.sketch || ''); setFact(d.fact || null);
     setHooks(d.hooks || []); setHook(d.hook || ''); setShots((d.shots || []).map(normalizeShot)); setCommitted(!!d.committed);
     setBusy({ und: false, fact: false, plan: false, script: false }); setCurId(p.id); setMsg([]); setFailDraw(false); setShowProj(false);
   };
@@ -283,7 +318,7 @@ export default function Studio() {
           </div>)}
 
         <Composer mode={mode} setMode={setMode} idea={idea} setIdea={setIdea} onSubmit={submit} busy={generating}
-          platforms={PLATFORMS} platform={platform} setPlatform={(k) => applyPreset(k as PK)} target={target} setTarget={setTarget} onNotice={warn}>
+          platforms={PLATFORMS} platform={platform} setPlatform={(k) => applyPreset(k as PK)} target={target} setTarget={setTarget} lang={lang} setLang={setLang} tone={tone} setTone={setTone} onNotice={warn}>
           <AirCanvas onResult={onDrawResult} onError={onDrawError} />
         </Composer>
 
@@ -386,7 +421,7 @@ export default function Studio() {
                 <p className={`label mt-1 ${total > target ? '!text-[#ff9d8a]' : ''}`}>~{total}s of {target}s target{shots.length > 0 && Math.abs(total - target) > 2 && <button type="button" className="ml-2 text-zinc-300 underline underline-offset-2" onClick={() => fit(target)}>Fit to target</button>}</p></div>
               <div className="flex flex-wrap items-center gap-2">
                 <button type="button" className="chip" onClick={() => setCommitted(false)}>Edit plan</button>
-                <button type="button" className="chip" onClick={exportMd}><IconDownload size={15} />Export .md</button>
+                <ExportMenu shots={shots} aspect={P.aspect} title={idea || und?.labels[0].name || 'storyboard'} script={scriptText} sketchFor={stageFor} headers={() => ({ 'x-access-code': code() })} onMd={exportMd} />
                 <button type="button" className="cta" onClick={() => setPlay(true)}><IconPlayerPlay size={18} />Play storyboard</button>
               </div>
             </div>
@@ -403,10 +438,11 @@ export default function Studio() {
               <div id={'shot-' + s.id} key={s.id} className="surface rise grid scroll-mt-24 gap-4 p-4 sm:p-5 md:grid-cols-[minmax(150px,200px)_minmax(150px,200px)_minmax(0,1fr)]" style={{ ['--i' as any]: Math.min(i, 8) }}>
                 <div><p className="label mb-1.5">Preview</p><ShotPreview shot={s} sketch={stageFor(s)} ratio={P.ratio} onDuration={(n) => patch(s.id, { duration: n })} /></div>
                 <div><p className="label mb-1.5">B-roll</p>
-                  {s.broll ? <><Clip it={s.broll} ratio={P.ratio} /><span className="mt-1 block truncate text-[12px] text-zinc-500">{s.broll.credit}</span></>
+                  {s.broll ? <><Clip it={s.broll} ratio={P.ratio} /><span className="mt-1 block truncate text-[12px] text-zinc-500">{s.broll.credit}</span>{s.pick && <span className="mt-0.5 block text-[12px] text-emerald-300/90">{s.pick}</span>}</>
                     : <div className="surface-hi flex items-center p-3 text-[13px] text-zinc-500" style={{ aspectRatio: P.ratio }}>{s.note || 'Finding B-roll…'}</div>}
                   {s.options.length > 1 && <div className="mt-2 flex gap-1.5">{s.options.map((o) => <button key={o.link} type="button" onClick={() => patch(s.id, { broll: o })} aria-label="Use this footage" className={`h-7 w-7 overflow-hidden rounded-md border ${o.link === s.broll?.link ? 'border-[#ff6a4d]' : 'border-white/10'}`}><img src={o.thumb} alt="" className="h-full w-full object-cover" /></button>)}</div>}
-                  <button type="button" className="chip mt-2 !px-3 !py-1 text-[13px]" onClick={() => findBroll(s.id, s.keywords, (s.page || 1) + 1)}>More footage</button>
+                  <div className="mt-2 flex flex-wrap gap-1.5"><button type="button" className="chip !px-3 !py-1 text-[13px]" onClick={() => findBroll(s.id, s.keywords, (s.page || 1) + 1)}>More footage</button>
+                    <label className="chip cursor-pointer !px-3 !py-1 text-[13px]"><IconUpload size={14} />Upload<input type="file" accept="video/*,image/*" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadClip(s.id, f); e.target.value = ''; }} /></label></div>
                 </div>
                 <div className="min-w-0 space-y-2.5">
                   <div className="flex items-center gap-2"><span className="w-7 text-lg font-semibold text-zinc-500">{String(i + 1).padStart(2, '0')}</span>
@@ -435,7 +471,7 @@ export default function Studio() {
               </div>)}
           </section>)}
       </main>
-      {play && shots.length > 0 && <Animatic shots={shots} ratio={P.ratio} sketchFor={stageFor} onClose={() => setPlay(false)} />}
+      {play && shots.length > 0 && <Animatic shots={shots} ratio={P.ratio} sketchFor={stageFor} lang={lang} onClose={() => setPlay(false)} />}
     </div>
   );
 }

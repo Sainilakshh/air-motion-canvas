@@ -43,7 +43,7 @@ export async function POST(req: Request) {
   try {
     const parts = b64
       ? [{ text: 'You see a rough hand-drawn sketch (white lines on black). Interpret it semantically (what it is AND what it represents/does), not just an object label. Name the concept at the level a viewer would: for a simple sketch prefer the general noun (tree, car, house, rocket) over a specific subtype (fruit tree, sedan) unless the drawing clearly shows distinguishing features; put specific subtypes in the alternative labels, and make wikiTitle the general article. ' + SCHEMA }, { inline_data: { mime_type: 'image/png', data: b64 } }]
-      : [{ text: `A video creator's idea: "${t}". Extract the core concrete visual subject (not the whole sentence) and what it represents. ` + SCHEMA }];
+      : [{ text: `A video creator's idea: "${t}". Extract the core concrete visual subject (not the whole sentence) and what it represents. The idea may be written in Hindi, Hinglish or English: always return labels, intent, context, keywords and wikiTitle in English. ` + SCHEMA }];
     const result = validate(await geminiJson(parts, 0.2, 'recognize'));
     cache.set(h, result);
     return NextResponse.json(result);

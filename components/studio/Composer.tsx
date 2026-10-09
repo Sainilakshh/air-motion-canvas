@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
+import { LANGS, TONES, type Lang, type Tone } from '@/lib/style';
 import { IconArrowRight, IconMicrophone, IconMinus, IconPlus } from '@tabler/icons-react';
 
 export type PlatformOpt = { key: string; label: string; short: string; aspect: string };
@@ -8,7 +9,8 @@ type Props = {
   mode: 'type' | 'draw'; setMode: (m: 'type' | 'draw') => void;
   idea: string; setIdea: (v: string) => void; onSubmit: () => void; busy: boolean;
   platforms: PlatformOpt[]; platform: string; setPlatform: (k: string) => void;
-  target: number; setTarget: (n: number) => void; onNotice: (m: string) => void;
+  target: number; setTarget: (n: number) => void;
+  lang: Lang; setLang: (l: Lang) => void; tone: Tone; setTone: (t: Tone) => void; onNotice: (m: string) => void;
   children: React.ReactNode;  // whiteboard (Draw mode)
 };
 const EXAMPLES = ['A 30-second video about why rockets are expensive', 'How solar panels turn sunlight into electricity', 'The story of a tree growing from a tiny seed'];
@@ -30,7 +32,7 @@ export default function Composer(p: Props) {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
     const r = new SR();
-    r.lang = 'en-IN'; r.interimResults = true; r.continuous = false;
+    r.lang = p.lang === 'hi' || p.lang === 'hinglish' ? 'hi-IN' : 'en-IN'; r.interimResults = true; r.continuous = false;
     r.onresult = (e: any) => p.setIdea(Array.from(e.results).map((x: any) => x[0].transcript).join('').trim());
     r.onerror = (e: any) => { setListening(false); if (e.error === 'not-allowed' || e.error === 'service-not-allowed') p.onNotice('Microphone is blocked — allow it in the browser to speak your idea.'); else if (e.error !== 'no-speech' && e.error !== 'aborted') p.onNotice('Voice input failed — you can still type your idea.'); };
     r.onend = () => { setListening(false); ta.current?.focus(); };
@@ -72,6 +74,8 @@ export default function Composer(p: Props) {
           <span className="-ml-1 text-zinc-500">s</span>
           <button type="button" className="rounded-full p-1 hover:bg-white/10" onClick={() => p.setTarget(Math.min(600, p.target + 5))} aria-label="Longer"><IconPlus size={14} /></button>
         </div>
+        <select className="chip sel" value={p.lang} onChange={(e) => p.setLang(e.target.value as Lang)} aria-label="Script language">{LANGS.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}</select>
+        <select className="chip sel" value={p.tone} onChange={(e) => p.setTone(e.target.value as Tone)} aria-label="Script tone">{TONES.map((l) => <option key={l.key} value={l.key}>{l.label}</option>)}</select>
         <span className="flex-1" />
         {p.mode === 'type' && <button type="button" className="cta" disabled={!p.idea.trim() || p.busy} onClick={p.onSubmit}>{p.busy ? 'Working…' : 'Generate story'}<IconArrowRight size={18} /></button>}
       </div>

@@ -15,5 +15,5 @@ export type Item = { thumb: string; link: string; credit: string; preview?: stri
 export type Hook = { style: string; text: string };
 export type Shot = {
   id: string; title: string; concept: string; visual: string; brollIdea: string; keywords: string[]; line: string;
-  duration: number; fact: string; broll: Item | null; options: Item[]; anim: AnimSpec; note?: string; page?: number;
+  duration: number; fact: string; broll: Item | null; options: Item[]; anim: AnimSpec; note?: string; page?: number; pick?: string;
 };

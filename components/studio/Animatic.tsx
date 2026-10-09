@@ -3,13 +3,14 @@ import { useEffect, useRef, useState } from 'react';
 import { IconPlayerPause, IconPlayerPlay, IconPlayerSkipBack, IconPlayerSkipForward, IconVolume, IconVolumeOff, IconX } from '@tabler/icons-react';
 import AnimationStage from '@/components/AnimationStage';
 import type { Shot } from '@/lib/types';
+import { speechLang, type Lang } from '@/lib/style';
 
 const dur = (s: Shot) => Math.max(1, Number(s.duration) || 5);
 const fmt = (n: number) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(Math.floor(n % 60)).padStart(2, '0')}`;
 const canSpeak = () => typeof window !== 'undefined' && 'speechSynthesis' in window;
 
 // Storyboard ko shot-by-shot chalata hai: B-roll (ya concept animation) + script caption + optional voice (browser TTS, free).
-export default function Animatic({ shots, ratio, sketchFor, onClose }: { shots: Shot[]; ratio: string; sketchFor: (s: Shot) => string | undefined; onClose: () => void }) {
+export default function Animatic({ shots, ratio, sketchFor, onClose, lang = 'auto' }: { shots: Shot[]; ratio: string; sketchFor: (s: Shot) => string | undefined; onClose: () => void; lang?: Lang }) {
   const [i, setI] = useState(0), [t, setT] = useState(0), [playing, setPlaying] = useState(true), [voice, setVoice] = useState(false), [speed, setSpeed] = useState(1);
   const portrait = ratio.startsWith('9');
   const shot = shots[i];
@@ -30,7 +31,7 @@ export default function Animatic({ shots, ratio, sketchFor, onClose }: { shots: 
     if (!canSpeak()) return;
     window.speechSynthesis.cancel();
     if (!voice || !playing || !shot?.line) return;
-    const u = new SpeechSynthesisUtterance(shot.line);
+    const u = new SpeechSynthesisUtterance(shot.line); u.lang = speechLang(lang, shot.line);
     const words = shot.line.split(/\s+/).length;
     u.rate = Math.min(1.5, Math.max(0.85, words / ((dur(shot) / speed) * 2.6)));
     window.speechSynthesis.speak(u);

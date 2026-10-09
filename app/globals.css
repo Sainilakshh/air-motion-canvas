@@ -199,3 +199,7 @@ html { scroll-behavior: smooth; }
 @keyframes gl1 { to { transform: translate(6rem, 3rem) scale(1.1); } } @keyframes gl2 { to { transform: translate(-5rem, 4rem) scale(1.15); } }
 .hero-grid { position: absolute; inset: 0; pointer-events: none; opacity: .5; background-image: radial-gradient(rgba(255,255,255,.12) 1px, transparent 1px); background-size: 28px 28px; -webkit-mask-image: radial-gradient(ellipse at 50% 40%, #000 0, transparent 70%); mask-image: radial-gradient(ellipse at 50% 40%, #000 0, transparent 70%); }
 @media (prefers-reduced-motion: reduce) { .hero-glow { animation: none; } }
+
+/* ---- R11 ---- */
+select.sel { appearance: none; -webkit-appearance: none; padding-right: 14px; cursor: pointer; background-image: none; }
+select.sel option { background: #131316; color: #e4e4e7; }
