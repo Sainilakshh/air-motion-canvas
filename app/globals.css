@@ -143,7 +143,16 @@ textarea.inp { line-height: 1.55; resize: vertical; }
 @keyframes shotin { from { opacity: 0; transform: scale(1.04); } to { opacity: 1; transform: none; } }
 .kb { animation: kb var(--kb, 6s) ease-out both; }
 @keyframes kb { from { transform: scale(1); } to { transform: scale(1.12) translate(-1.5%, -1%); } }
-@media (prefers-reduced-motion: reduce) { .fx-cloud, .fx-stars2, .fx-planet, .fx-road, .fx-glow, .fx-shadow, .kb, .shot-in { animation: none !important; } }
+@keyframes cam-push { from { transform: scale(1); } to { transform: scale(1.1); } }
+@keyframes cam-pull { from { transform: scale(1.1); } to { transform: scale(1); } }
+@keyframes cam-left { from { transform: scale(1.08) translateX(2%); } to { transform: scale(1.08) translateX(-2%); } }
+@keyframes cam-right { from { transform: scale(1.08) translateX(-2%); } to { transform: scale(1.08) translateX(2%); } }
+@keyframes cam-up { from { transform: scale(1.08) translateY(2%); } to { transform: scale(1.08) translateY(-2%); } }
+@keyframes cam-down { from { transform: scale(1.08) translateY(-2%); } to { transform: scale(1.08) translateY(2%); } }
+@keyframes cam-track { from { transform: scale(1.08) translateY(4%); } to { transform: scale(1.08) translateY(-5%); } }
+@keyframes cam-orbit { from { transform: scale(1) rotate(-1deg); } to { transform: scale(1.06) rotate(1deg); } }
+@keyframes cam-still { from { transform: scale(1); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .fx-cloud, .fx-stars2, .fx-planet, .fx-road, .fx-glow, .fx-shadow, .kb, .shot-in, .shot-in video, .shot-in img { animation: none !important; } }
 
 /* ---- R9: UI polish ---- */
 html { scroll-behavior: smooth; }

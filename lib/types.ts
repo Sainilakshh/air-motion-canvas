@@ -13,7 +13,9 @@ export type RecognizeResult = {
 };
 export type Item = { thumb: string; link: string; credit: string; preview?: string };
 export type Hook = { style: string; text: string };
+export type CameraMove = 'static' | 'push-in' | 'pull-back' | 'pan-left' | 'pan-right' | 'tilt-up' | 'tilt-down' | 'track-up' | 'orbit';
+export type VisualStyle = 'cinematic' | 'storybook' | 'neon';
 export type Shot = {
   id: string; title: string; concept: string; visual: string; brollIdea: string; keywords: string[]; line: string;
-  duration: number; fact: string; broll: Item | null; options: Item[]; anim: AnimSpec; note?: string; page?: number; pick?: string;
+  duration: number; fact: string; broll: Item | null; options: Item[]; anim: AnimSpec; camera?: CameraMove; note?: string; page?: number; pick?: string;
 };

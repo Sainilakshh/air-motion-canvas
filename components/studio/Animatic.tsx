@@ -2,15 +2,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconPlayerPause, IconPlayerPlay, IconPlayerSkipBack, IconPlayerSkipForward, IconVolume, IconVolumeOff, IconX } from '@tabler/icons-react';
 import AnimationStage from '@/components/AnimationStage';
-import type { Shot } from '@/lib/types';
+import type { Shot, VisualStyle } from '@/lib/types';
 import { speechLang, type Lang } from '@/lib/style';
 
 const dur = (s: Shot) => Math.max(1, Number(s.duration) || 5);
 const fmt = (n: number) => `${String(Math.floor(n / 60)).padStart(2, '0')}:${String(Math.floor(n % 60)).padStart(2, '0')}`;
 const canSpeak = () => typeof window !== 'undefined' && 'speechSynthesis' in window;
+const cameraKey = (move?: Shot['camera']) => ({ 'push-in': 'cam-push', 'pull-back': 'cam-pull', 'pan-left': 'cam-left', 'pan-right': 'cam-right', 'tilt-up': 'cam-up', 'tilt-down': 'cam-down', 'track-up': 'cam-track', orbit: 'cam-orbit', static: 'cam-still' }[move || 'push-in']);
 
 // Storyboard ko shot-by-shot chalata hai: B-roll (ya concept animation) + script caption + optional voice (browser TTS, free).
-export default function Animatic({ shots, ratio, sketchFor, onClose, lang = 'auto' }: { shots: Shot[]; ratio: string; sketchFor: (s: Shot) => string | undefined; onClose: () => void; lang?: Lang }) {
+export default function Animatic({ shots, ratio, sketchFor, onClose, lang = 'auto', visualStyle = 'cinematic' }: { shots: Shot[]; ratio: string; sketchFor: (s: Shot) => string | undefined; onClose: () => void; lang?: Lang; visualStyle?: VisualStyle }) {
   const [i, setI] = useState(0), [t, setT] = useState(0), [playing, setPlaying] = useState(true), [voice, setVoice] = useState(false), [speed, setSpeed] = useState(1);
   const portrait = ratio.startsWith('9');
   const shot = shots[i];
@@ -58,10 +59,10 @@ export default function Animatic({ shots, ratio, sketchFor, onClose, lang = 'aut
       <button type="button" className="iconbtn absolute right-4 top-4 !rounded-full" onClick={onClose} aria-label="Close preview"><IconX size={18} /></button>
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0c0c0f]" style={{ aspectRatio: ratio, ...(portrait ? { height: 'min(76vh, 780px)' } : { width: 'min(92vw, 1040px)' }) }}>
         <div key={shot.id} className="shot-in absolute inset-0">
-          {b?.preview ? <video key={b.preview} src={b.preview} poster={b.thumb} autoPlay muted loop playsInline className="h-full w-full object-cover" />
-            : b?.thumb ? <img src={b.thumb} alt="" className="kb h-full w-full object-cover" style={{ ['--kb' as any]: `${dur(shot) / speed}s` }} />
-            : <AnimationStage anim={shot.anim} sketch={sketchFor(shot)} ratio={ratio} compact />}
-          {b && <div className="absolute right-3 top-14 w-[22%] min-w-[70px] max-w-[130px] opacity-95"><AnimationStage anim={shot.anim} sketch={sketchFor(shot)} ratio={ratio} compact /></div>}
+          {b?.preview ? <video key={b.preview} src={b.preview} poster={b.thumb} autoPlay muted loop playsInline className="h-full w-full object-cover" style={{ animation: `${cameraKey(shot.camera)} ${dur(shot) / speed}s ease-in-out infinite alternate` }} />
+            : b?.thumb ? <img src={b.thumb} alt="" className="h-full w-full object-cover" style={{ animation: `${cameraKey(shot.camera)} ${dur(shot) / speed}s ease-in-out infinite alternate` }} />
+            : <AnimationStage anim={shot.anim} sketch={sketchFor(shot)} ratio={ratio} compact camera={shot.camera} visualStyle={visualStyle} />}
+          {b && <div className="absolute right-3 top-14 w-[22%] min-w-[70px] max-w-[130px] opacity-95"><AnimationStage anim={shot.anim} sketch={sketchFor(shot)} ratio={ratio} compact camera={shot.camera} visualStyle={visualStyle} /></div>}
         </div>
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
         <div className="absolute inset-x-0 top-0 flex gap-1 p-3">{shots.map((s, k) => <span key={s.id} className="h-1 overflow-hidden rounded-full bg-white/20" style={{ flex: dur(s) }}><span className="block h-full bg-white" style={{ width: `${k < i ? 100 : k === i ? Math.min(100, (t / dur(s)) * 100) : 0}%` }} /></span>)}</div>

@@ -16,7 +16,7 @@ Other shots in the storyboard (do not repeat them): ${JSON.stringify(others || [
 Rewrite shot #${Number(position) + 1} with a fresh angle. Current version: ${JSON.stringify({ title: shot?.title, visual: shot?.visual, line: shot?.line })}. Keep duration near ${shot?.duration || 5}s. Same language as the idea. Return ONLY JSON: ${SHOT_JSON}${styleRule(asLang(lang), asTone(tone))}`;
   try {
     const s = toShot(await geminiJson([{ text: prompt }], 0.8, 'shot'), concept);
-    return NextResponse.json({ title: s.title, concept: s.concept, visual: s.visual, brollIdea: s.brollIdea, keywords: s.keywords, fact: s.fact, line: s.line, anim: s.anim });
+    return NextResponse.json({ title: s.title, concept: s.concept, visual: s.visual, brollIdea: s.brollIdea, keywords: s.keywords, fact: s.fact, line: s.line, anim: s.anim, camera: s.camera });
   } catch (e: any) {
     return fail(e);
   }

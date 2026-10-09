@@ -12,6 +12,8 @@ import EmptyState from './studio/EmptyState';
 import Animatic from './studio/Animatic';
 import ExportMenu from './studio/ExportMenu';
 import { asLang, asTone, type Lang, type Tone } from '@/lib/style';
+import { checkStory } from '@/lib/storyCheck';
+import type { VisualStyle } from '@/lib/types';
 import { ImageGenerationLoader } from './ui/image-generation-loader';
 import { DEMO, fallbackHooks, fallbackShots, findDemo, normalizeShot } from '@/lib/demo';
 import { heuristicAnim } from '@/lib/animation';
@@ -65,6 +67,7 @@ export default function Studio() {
   const [idea, setIdea] = useState('');
   const [mode, setMode] = useState<'type' | 'draw'>('type');
   const [play, setPlay] = useState(false);
+  const [visualStyle, setVisualStyle] = useState<VisualStyle>('cinematic');
   const [und, setUnd] = useState<RecognizeResult | null>(null);
   const [sketch, setSketch] = useState('');
   const [fact, setFact] = useState<Fact | null>(null);
@@ -257,13 +260,13 @@ export default function Studio() {
     setRb((x) => ({ ...x, [s.id]: true }));
     try {
       const d = await post('/api/shot', { idea: idea || und?.labels[0].name, concept: und?.labels[0].name, facts: fact?.extract || '', hook, platform: P.label, shot: { title: s.title, visual: s.visual, line: s.line, duration: s.duration }, others: shots.filter((x) => x.id !== s.id).map((x) => x.title), position: i, lang, tone });
-      patch(s.id, { title: d.title, concept: d.concept, visual: d.visual, brollIdea: d.brollIdea, keywords: d.keywords, fact: d.fact, line: d.line, anim: d.anim });
+      patch(s.id, { title: d.title, concept: d.concept, visual: d.visual, brollIdea: d.brollIdea, keywords: d.keywords, fact: d.fact, line: d.line, anim: d.anim, camera: d.camera });
       findBroll(s.id, d.keywords);
     } catch (e: any) { warn(e?.message === '401' ? NEED_CODE : AI_DOWN); }
     setRb((x) => ({ ...x, [s.id]: false }));
   };
   const move = (i: number, d: number) => setShots((s) => { const a = [...s], j = i + d; if (j < 0 || j >= a.length) return a; [a[i], a[j]] = [a[j], a[i]]; return a; });
-  const addShot = () => { const s: Shot = { id: uid(), title: 'New shot', concept: und?.labels[0].name || '', visual: '', brollIdea: '', keywords: und?.keywords.slice(0, 3) || [], line: '', duration: 5, fact: '', broll: null, options: [], anim: und?.anim || heuristicAnim('') }; setShots((a) => [...a, s]); if (s.keywords.length) findBroll(s.id, s.keywords); };
+  const addShot = () => { const s: Shot = { id: uid(), title: 'New shot', concept: und?.labels[0].name || '', visual: '', brollIdea: '', keywords: und?.keywords.slice(0, 3) || [], line: '', duration: 5, fact: '', broll: null, options: [], anim: und?.anim || heuristicAnim(''), camera: 'push-in' }; setShots((a) => [...a, s]); if (s.keywords.length) findBroll(s.id, s.keywords); };
   const fit = (t: number) => setShots((a) => {
     const tot = sumDur(a); if (!tot || t <= 0) return a;
     const out = a.map((s) => ({ ...s, duration: Math.max(2, Math.round((Number(s.duration) || 0) * (t / tot))) }));
@@ -451,12 +454,14 @@ export default function Studio() {
               <div><h2 className="text-2xl font-semibold tracking-tight">Storyboard</h2>
                 <p className={`label mt-1 ${total > target ? '!text-[#ff9d8a]' : ''}`}>~{total}s of {target}s target{shots.length > 0 && Math.abs(total - target) > 2 && <button type="button" className="ml-2 text-zinc-300 underline underline-offset-2" onClick={() => fit(target)}>Fit to target</button>}</p></div>
               <div className="flex flex-wrap items-center gap-2">
+                <label className="label flex items-center gap-2">Look<select className="chip sel" value={visualStyle} onChange={(e) => setVisualStyle(e.target.value as VisualStyle)} aria-label="Visual style"><option value="cinematic">Cinematic</option><option value="storybook">Storybook</option><option value="neon">Neon</option></select></label>
                 <button type="button" className="chip" onClick={() => setCommitted(false)}>Edit plan</button>
                 <ExportMenu shots={shots} aspect={P.aspect} title={idea || und?.labels[0].name || 'storyboard'} script={scriptText} sketchFor={stageFor} headers={() => ({ 'x-access-code': code() })} onMd={exportMd} />
                 <button type="button" className="cta" onClick={() => setPlay(true)}><IconPlayerPlay size={18} />Play storyboard</button>
               </div>
             </div>
             {hook && <p className="surface-hi px-4 py-3 text-[16px]"><span className="label mr-2">Hook</span>{hook}</p>}
+            <div className="surface-hi flex flex-wrap gap-2 p-4" aria-live="polite"><span className="label mr-1 self-center">Story check</span>{checkStory(shots, target).map((n, i) => <span key={`${n.shotId || 'story'}-${i}`} className={`rounded-full border px-3 py-1 text-[12px] ${n.level === 'good' ? 'border-emerald-400/20 text-emerald-200' : 'border-amber-300/20 text-amber-100'}`}>{n.shotId ? `${shots.findIndex((s) => s.id === n.shotId) + 1}. ` : ''}{n.text}</span>)}</div>
             <div className="flex h-14 gap-1 text-[13px]" aria-label="Timeline">
               {shots.map((s, i) => {
                 const st = sumDur(shots.slice(0, i)), d = Number(s.duration) || 0;
@@ -467,7 +472,7 @@ export default function Studio() {
             </div>
             {shots.map((s, i) => (
               <div id={'shot-' + s.id} key={s.id} className="surface rise grid scroll-mt-24 gap-4 p-4 sm:p-5 md:grid-cols-[minmax(150px,200px)_minmax(150px,200px)_minmax(0,1fr)]" style={{ ['--i' as any]: Math.min(i, 8) }}>
-                <div><p className="label mb-1.5">Preview</p><ShotPreview shot={s} sketch={stageFor(s)} ratio={P.ratio} onDuration={(n) => patch(s.id, { duration: n })} /></div>
+                <div><p className="label mb-1.5">Preview</p><ShotPreview shot={s} sketch={stageFor(s)} ratio={P.ratio} visualStyle={visualStyle} onDuration={(n) => patch(s.id, { duration: n })} /></div>
                 <div><p className="label mb-1.5">B-roll</p>
                   {s.broll ? <><Clip it={s.broll} ratio={P.ratio} /><span className="mt-1 block truncate text-[12px] text-zinc-500">{s.broll.credit}</span>{s.pick && <span className="mt-0.5 block text-[12px] text-emerald-300/90">{s.pick}</span>}</>
                     : <div className="surface-hi flex items-center p-3 text-[13px] text-zinc-500" style={{ aspectRatio: P.ratio }}>{s.note || 'Finding B-roll…'}</div>}
@@ -482,6 +487,7 @@ export default function Studio() {
                   <div className="flex items-center gap-2"><span className="label w-14 shrink-0">Concept</span>
                     <input value={s.concept} onChange={(e) => patch(s.id, { concept: e.target.value })} onBlur={(e) => { if (e.target.value && s.anim.emoji !== heuristicAnim(e.target.value).emoji && !s.anim.svg) patch(s.id, { anim: heuristicAnim(e.target.value + ' ' + s.title) }); }} className="inp min-w-0 flex-1" /></div>
                   <input value={s.visual} onChange={(e) => patch(s.id, { visual: e.target.value })} placeholder="Visual" className="inp w-full" aria-label="Visual" />
+                  <label className="flex items-center gap-2 text-[13px] text-zinc-400"><span>Camera</span><select value={s.camera || 'push-in'} onChange={(e) => patch(s.id, { camera: e.target.value as Shot['camera'] })} className="chip sel" aria-label="Camera movement">{[['static','Static'],['push-in','Slow push-in'],['pull-back','Pull-back'],['pan-left','Pan left'],['pan-right','Pan right'],['tilt-up','Tilt up'],['tilt-down','Tilt down'],['track-up','Track up'],['orbit','Orbit']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}</select></label>
                   <textarea value={s.line} onChange={(e) => patch(s.id, { line: e.target.value })} rows={2} className="inp w-full" placeholder="Script line" aria-label="Script line" />
                   {s.fact && <p className="text-[14px] text-zinc-400"><span className="label mr-1">Fact</span>{s.fact}</p>}
                   <div className="flex flex-wrap items-center gap-2">
@@ -520,7 +526,7 @@ export default function Studio() {
               </div>)}
           </section>)}
       </main>
-      {play && shots.length > 0 && <Animatic shots={shots} ratio={P.ratio} sketchFor={stageFor} lang={lang} onClose={() => setPlay(false)} />}
+      {play && shots.length > 0 && <Animatic shots={shots} ratio={P.ratio} sketchFor={stageFor} lang={lang} visualStyle={visualStyle} onClose={() => setPlay(false)} />}
     </div>
   );
 }

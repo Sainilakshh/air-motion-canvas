@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { sanitizeSvg } from '@/lib/animation';
-import type { AnimSpec, Primitive } from '@/lib/types';
+import type { AnimSpec, CameraMove, Primitive, VisualStyle } from '@/lib/types';
 
 type KF = { frames: Keyframe[]; opts: KeyframeAnimationOptions; origin?: string };
 const orbit = (r: number) => Array.from({ length: 17 }, (_, i) => { const a = (i / 16) * 2 * Math.PI; return { transform: `translate(${Math.cos(a) * r}%, ${Math.sin(a) * r * 0.6}%)` }; });
@@ -60,7 +60,7 @@ function useTransparentSketch(src?: string) {
   return out;
 }
 
-export default function AnimationStage({ anim, sketch, ratio = '16 / 9', label, compact = false }: { anim: AnimSpec; sketch?: string; ratio?: string; label?: string; compact?: boolean }) {
+export default function AnimationStage({ anim, sketch, ratio = '16 / 9', label, compact = false, camera = 'push-in', visualStyle = 'cinematic' }: { anim: AnimSpec; sketch?: string; ratio?: string; label?: string; compact?: boolean; camera?: CameraMove; visualStyle?: VisualStyle }) {
   const root = useRef<HTMLDivElement>(null), cam = useRef<HTMLDivElement>(null), enter = useRef<HTMLDivElement>(null);
   const layers = useRef<(HTMLDivElement | null)[]>([]);
   const clean = useTransparentSketch(sketch);
@@ -79,9 +79,19 @@ export default function AnimationStage({ anim, sketch, ratio = '16 / 9', label, 
       el.style.transformOrigin = k.origin || '50% 50%';
       try { running.push(el.animate(k.frames, k.opts)); } catch {}
     });
-    // Camera: dheere push-in + drift (parallax feel) aur entrance pop. Dono ek baar set, loop mein nahi.
+    // Per-shot camera direction is rendered on the scene container, with restrained motion to avoid cropping.
     try {
-      if (cam.current) running.push(cam.current.animate([{ transform: 'scale(1) translate(0,0)' }, { transform: 'scale(1.07) translate(-1.2%,-0.8%)' }], { duration: 14000, direction: 'alternate', iterations: Infinity, easing: 'ease-in-out' }));
+      const moves: Record<CameraMove, [string, string]> = {
+        static: ['scale(1)', 'scale(1)'],
+        'push-in': ['scale(1)', 'scale(1.1)'], 'pull-back': ['scale(1.12)', 'scale(1)'],
+        'pan-left': ['scale(1.08) translate(2%,0)', 'scale(1.08) translate(-2%,0)'],
+        'pan-right': ['scale(1.08) translate(-2%,0)', 'scale(1.08) translate(2%,0)'],
+        'tilt-up': ['scale(1.08) translateY(2%)', 'scale(1.08) translateY(-2%)'],
+        'tilt-down': ['scale(1.08) translateY(-2%)', 'scale(1.08) translateY(2%)'],
+        'track-up': ['scale(1.08) translateY(4%)', 'scale(1.08) translateY(-5%)'],
+        orbit: ['scale(1) rotate(-1deg)', 'scale(1.06) rotate(1deg)'],
+      };
+      if (cam.current && camera !== 'static') running.push(cam.current.animate(moves[camera].map((transform) => ({ transform })), { duration: 9000, direction: 'alternate', iterations: Infinity, easing: 'ease-in-out' }));
       if (enter.current && !reduce) enter.current.animate([{ opacity: 0, transform: 'scale(.55) translateY(10%)', filter: 'blur(6px)' }, { opacity: 1, transform: 'scale(1) translateY(0)', filter: 'blur(0)' }], { duration: 750, easing: 'cubic-bezier(.34,1.56,.64,1)', fill: 'backwards' });
     } catch {}
     if (reduce) running.forEach((a) => a.pause());
@@ -89,7 +99,7 @@ export default function AnimationStage({ anim, sketch, ratio = '16 / 9', label, 
     const io = typeof IntersectionObserver !== 'undefined' && root.current ? new IntersectionObserver(([e]) => running.forEach((a) => (e.isIntersecting && !reduce ? a.play() : a.pause()))) : null;
     if (io && root.current) io.observe(root.current);
     return () => { running.forEach((a) => a.cancel()); io?.disconnect(); };
-  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key, camera]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fx = new Set(anim.effects);
   const lead = anim.primitives[0];
@@ -108,7 +118,7 @@ export default function AnimationStage({ anim, sketch, ratio = '16 / 9', label, 
   ), subject);
 
   return (
-    <div ref={root} className={`stage bd-${anim.backdrop}`} style={{ aspectRatio: ratio }}>
+    <div ref={root} className={`stage bd-${anim.backdrop}`} data-visual-style={visualStyle} style={{ aspectRatio: ratio, filter: visualStyle === 'storybook' ? 'sepia(.32) saturate(.78) contrast(1.08)' : visualStyle === 'neon' ? 'saturate(1.55) hue-rotate(9deg) contrast(1.08)' : 'contrast(1.08) saturate(1.08)' }}>
       {fx.has('stars') && <div className="fx-stars" />}
       {fx.has('rays') && <div className="fx-rays" />}
       {anim.backdrop === 'ocean' && ['rgba(14,116,144,.55)', 'rgba(34,211,238,.25)'].map((c, i) => (

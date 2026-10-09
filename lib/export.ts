@@ -39,6 +39,19 @@ export function toCsv(shots: Shot[]): string {
   return '﻿' + head.join(',') + '\n' + rows.join('\n');   // BOM: Excel mein Hindi sahi dikhe
 }
 
+// CMX3600 EDL (30 fps): Premiere, DaVinci Resolve, CapCut Pro mein timeline markers/cuts ke roop mein khulta hai.
+const FPS = 30;
+const tc = (sec: number) => { const f = Math.round(sec * FPS); return [Math.floor(f / (FPS * 3600)), Math.floor(f / (FPS * 60)) % 60, Math.floor(f / FPS) % 60, f % FPS].map((x) => pad(x)).join(':'); };
+export function toEdl(shots: Shot[], title = 'Storyboard'): string {
+  let t = 0;
+  const rows = shots.map((s, i) => {
+    const d = Math.max(0.5, Number(s.duration) || 0), a = t; t += d;
+    const nm = (s.title || 'shot ' + (i + 1)).replace(/[\r\n]+/g, ' ').slice(0, 60);
+    return `${pad(i + 1, 3)}  AX       V     C        ${tc(0)} ${tc(d)} ${tc(a)} ${tc(a + d)}\n* FROM CLIP NAME: ${nm}\n* COMMENT: ${(s.line || '').replace(/[\r\n]+/g, ' ').slice(0, 200)}`;
+  });
+  return `TITLE: ${title.replace(/[\r\n]+/g, ' ').slice(0, 60)}\nFCM: NON-DROP FRAME\n\n${rows.join('\n\n')}\n`;
+}
+
 export function download(name: string, data: Blob | string, type = 'text/plain;charset=utf-8') {
   const blob = typeof data === 'string' ? new Blob([data], { type }) : data;
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();

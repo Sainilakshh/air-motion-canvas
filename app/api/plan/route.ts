@@ -19,7 +19,7 @@ Facts (use ONLY these for factual claims, else leave fact empty): ${facts || 'no
 Platform: ${platform} (${aspect}). Make ${shotMin} to ${shotMax} shots whose durations add up to about ${targetSeconds} seconds, with pacing suited to the platform (shorter shots for vertical short-form). Write in the same language as the idea. Return ONLY JSON:
 {"hooks":[{"style":"Curiosity","text":string},{"style":"Question","text":string},{"style":"Shock/Stat","text":string},{"style":"Storytelling","text":string}],
 "shots":[${SHOT_JSON}]}
-Shots should tell a story (e.g. launch -> engine -> Earth from orbit -> cost/scale). Shock/Stat hook must not invent numbers beyond the facts.${rule}`;
+Shots should tell a clear beginning-middle-payoff story with progressive, non-repeating visuals. Use 3–5 shots where possible, within the requested range. Give each shot a narrative purpose, transition and context-appropriate camera movement. Use track-up for launches, push-in for reveals, pan for landscapes and static for information-heavy moments. Shock/Stat hook must not invent numbers beyond the facts.${rule}`;
   try {
     const p = await geminiJson([{ text: prompt }], 0.6, 'plan');
     if (!Array.isArray(p.shots) || !p.shots.length) throw new Error('plan invalid');

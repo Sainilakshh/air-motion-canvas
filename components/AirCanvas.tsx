@@ -183,13 +183,19 @@ export default function AirCanvas({ onResult, onError }: { onResult: (r: Recogni
     setCamStatus('starting');
     (async () => {
       try {
+        setCamMsg('Requesting camera permission…');
         stream = await navigator.mediaDevices.getUserMedia({ video: { width: 960, height: 540 } });
         const v = videoRef.current!; v.srcObject = stream; await v.play();
+        setCamMsg('Loading hand-tracking model…');
         const { FilesetResolver, HandLandmarker } = await import('@mediapipe/tasks-vision');
         const ok = (u: string) => fetch(u, { method: 'HEAD' }).then((r) => r.ok).catch(() => false);
         const fs = await FilesetResolver.forVisionTasks((await ok('/mediapipe/wasm/vision_wasm_internal.js')) ? '/mediapipe/wasm' : `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/wasm`);
-        lm = await HandLandmarker.createFromOptions(fs, { baseOptions: { modelAssetPath: (await ok('/models/hand_landmarker.task')) ? '/models/hand_landmarker.task' : MODEL_URL, delegate: 'GPU' }, runningMode: 'VIDEO', numHands: 1 });
+        const modelAssetPath = (await ok('/models/hand_landmarker.task')) ? '/models/hand_landmarker.task' : MODEL_URL;
+        const options = { runningMode: 'VIDEO' as const, numHands: 1 };
+        try { lm = await HandLandmarker.createFromOptions(fs, { ...options, baseOptions: { modelAssetPath, delegate: 'GPU' } }); }
+        catch { lm = await HandLandmarker.createFromOptions(fs, { ...options, baseOptions: { modelAssetPath, delegate: 'CPU' } }); }
         if (stop) return;
+        setCamMsg('');
         setCamStatus('on');
         let cand = 'none', count = 0, stable = 'none', lastTs = -1, fistAt = 0, lastProc = 0;
         const endStroke = () => { const s = cur.current; cur.current = null; lastPt.current = null; if (s && s.pts.length) commit([...base(), s]); };
@@ -198,7 +204,9 @@ export default function AirCanvas({ onResult, onError }: { onResult: (r: Recogni
           if (v.readyState < 2 || v.currentTime === lastTs) return;
           lastTs = v.currentTime;
           const now = performance.now();
-          const l = lm.detectForVideo(v, now).landmarks[0];
+          let l: any;
+          try { l = lm.detectForVideo(v, now).landmarks[0]; }
+          catch { setCamMsg('Hand tracking stopped. Turn camera mode off and on to retry.'); setCamStatus('error'); setCamOn(false); return; }
           if (!l) { if (stable !== 'none') { endStroke(); stable = 'none'; cand = 'none'; count = 0; setGest('none'); } camCursor.current = null; dirty.current = true; return; }
           const g = classify(l);
           count = g === cand ? count + 1 : 1; cand = g;   // gesture 4 frame stable ho tab hi maano (jitter se bachav)
@@ -217,10 +225,10 @@ export default function AirCanvas({ onResult, onError }: { onResult: (r: Recogni
         loop();
       } catch (e: any) {
         setCamStatus('error'); setCamOn(false);
-        setCamMsg(e?.name === 'NotAllowedError' ? 'Camera permission denied — allow it in the browser, or keep using mouse/pen.' : 'Camera or hand model unavailable — the whiteboard still works.');
+        setCamMsg(e?.name === 'NotAllowedError' ? 'Camera permission denied — allow it in the browser, or keep using mouse/pen.' : 'Camera opened, but hand tracking could not load. Check your connection or install public/models/hand_landmarker.task.');
       }
     })();
-    return () => { stop = true; cancelAnimationFrame(raf); stream?.getTracks().forEach((t) => t.stop()); lm?.close?.(); camCursor.current = null; dirty.current = true; setCamStatus('idle'); setGest('none'); };
+    return () => { stop = true; cancelAnimationFrame(raf); stream?.getTracks().forEach((t) => t.stop()); lm?.close?.(); camCursor.current = null; dirty.current = true; setGest('none'); };
   }, [camOn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pos = (cx: number, cy: number) => { const r = board.current!.getBoundingClientRect(); return { x: ((cx - r.left) / r.width) * W, y: ((cy - r.top) / r.height) * H }; };
@@ -306,8 +314,8 @@ export default function AirCanvas({ onResult, onError }: { onResult: (r: Recogni
           <button type="button" className="iconbtn" onClick={redo} disabled={!ui.canRedo} title="Redo (Shift+Ctrl/Cmd+Z)" aria-label="Redo"><IconArrowForwardUp size={18} /></button>
           <button type="button" className="iconbtn" onClick={clear} disabled={!ui.count} title="Clear (Shift+Backspace)" aria-label="Clear"><IconTrash size={18} /></button>
         </div>
-        <button type="button" className="iconbtn" data-on={camOn} onClick={() => { setCamMsg(''); setCamOn((c) => !c); }} title="Camera air-draw" aria-label="Camera air-draw">{camOn ? <IconCameraOff size={18} /> : <IconCamera size={18} />}</button>
-        {camStatus === 'starting' && <span className="label">Starting camera…</span>}
+        <button type="button" className="iconbtn" data-on={camOn} onClick={() => { setCamMsg(''); if (camOn) { setCamOn(false); setCamStatus('idle'); } else setCamOn(true); }} title="Camera air-draw" aria-label="Camera air-draw">{camOn ? <IconCameraOff size={18} /> : <IconCamera size={18} />}</button>
+        {camStatus === 'starting' && <span className="label">{camMsg || 'Starting camera…'}</span>}
         {camStatus === 'on' && <span className="label">Pinch = draw · Fist 1s = clear · Thumbs-up = understand · <b>{gest}</b></span>}
         {camStatus === 'error' && <span className="label text-amber-300">{camMsg}</span>}
         <span className="label hidden lg:inline">Two-finger tap = undo · E eraser · [ ] size · Ctrl+Enter understand</span>

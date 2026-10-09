@@ -90,3 +90,9 @@ Without the code: Demo mode (8 built-in concepts only). In production with no `D
 - **Script chat:** script ke neeche "Not happy? Tell the AI what to change" box. Chat ki tarah likho: "shot 2 chhota karo", "more funny", "Hinglish mein likho", "opening line strong karo". `/api/refine` poora script wapas deta hai; jo tumne nahi bola woh waisa hi rehta hai. Quick chips + Undo (pichle 10 versions) + chat history (last 6 messages context mein jaate hain).
 - Naya hook chunne, naya project ya project open karne par chat reset hota hai. Chat history projects mein save nahi hoti (sirf script lines save hoti hain).
 - Facts rule wahi hai: AI sirf diye gaye facts use kare, naye numbers invent na kare.
+
+
+## R13
+- **Rate limit:** har /api route par IP ke hisaab se 40 requests/min (`RATE_LIMIT_PER_MIN` se badlo). In-memory hai, to serverless par basic abuse-guard hai; pakka limit chahiye to Upstash/KV lagao.
+- **Export > Editor timeline (.edl):** shots ke cuts timing ke saath (30fps CMX3600) Premiere / DaVinci Resolve ke liye.
+- **Export > Posting pack (.txt):** `/api/social` script se 3 titles, caption aur hashtags banata hai (naye facts invent nahi karta).

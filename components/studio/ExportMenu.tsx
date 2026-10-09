@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconChevronDown, IconDownload, IconX } from '@tabler/icons-react';
 import { useOutsideClick } from '@/lib/use-outside-click';
-import { download, slug, toCsv, toSrt } from '@/lib/export';
+import { download, slug, toCsv, toEdl, toSrt } from '@/lib/export';
 import { exportVideo, type Progress } from '@/lib/videoExport';
 import type { Shot } from '@/lib/types';
 
@@ -17,6 +17,17 @@ export default function ExportMenu(p: Props) {
   useEffect(() => () => { ctl.current?.abort(); }, []);
   useEffect(() => () => { if (res) URL.revokeObjectURL(res.url); }, [res]);
   const name = slug(p.title), portrait = p.aspect === '9:16';
+  const [busySocial, setBusySocial] = useState(false), [note, setNote] = useState('');
+  const social = async () => {
+    setBusySocial(true); setNote('');
+    try {
+      const r = await fetch('/api/social', { method: 'POST', headers: { 'Content-Type': 'application/json', ...p.headers() }, body: JSON.stringify({ title: p.title, script: p.script, platform: portrait ? 'reel' : 'youtube' }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(r.status === 429 ? 'Too many requests, try again in a minute.' : r.status === 401 ? 'Locked: enter the access code.' : 'Could not generate right now.');
+      download(name + '-posting-pack.txt', `TITLES\n${d.titles.map((t: string, i: number) => `${i + 1}. ${t}`).join('\n')}\n\nCAPTION\n${d.caption}\n\nHASHTAGS\n${d.hashtags.map((h: string) => '#' + h).join(' ')}\n`);
+      setOpen(false);
+    } catch (e: any) { setNote(e?.message || 'Failed'); } finally { setBusySocial(false); }
+  };
 
   const start = async () => {
     setOpen(false); setDlg(true); setErr(''); setRes(null); setProg({ phase: 'load', pct: 0, note: 'Preparing…' });
@@ -40,6 +51,9 @@ export default function ExportMenu(p: Props) {
           <button type="button" className={item} onClick={() => { download(name + '-shotlist.csv', toCsv(p.shots), 'text/csv;charset=utf-8'); setOpen(false); }}><span className="text-[15px] font-medium text-white">Shot list (.csv)</span><span className="label">Timing, script, footage links, credits</span></button>
           <button type="button" className={item} onClick={() => { p.onMd(); setOpen(false); }}><span className="text-[15px] font-medium text-white">Storyboard (.md)</span><span className="label">Full document</span></button>
           <button type="button" className={item} onClick={() => { download(name + '-script.txt', p.script); setOpen(false); }}><span className="text-[15px] font-medium text-white">Script (.txt)</span><span className="label">Just the voiceover lines</span></button>
+          <button type="button" className={item} onClick={() => { download(name + '.edl', toEdl(p.shots, p.title)); setOpen(false); }}><span className="text-[15px] font-medium text-white">Editor timeline (.edl)</span><span className="label">Cuts with timings for Premiere / DaVinci Resolve</span></button>
+          <button type="button" className={item} onClick={social} disabled={busySocial || !p.script.trim()}><span className="text-[15px] font-medium text-white">{busySocial ? 'Writing…' : 'Posting pack (.txt)'}</span><span className="label">AI titles, caption and hashtags from your script</span></button>
+          {note && <p className="label px-3 pb-2 pt-1">{note}</p>}
         </div>)}
       {dlg && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-4" role="dialog" aria-modal="true" aria-label="Video export">

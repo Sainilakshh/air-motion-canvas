@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconPlayerPause, IconPlayerPlay } from '@tabler/icons-react';
 import AnimationStage from '@/components/AnimationStage';
-import type { Shot } from '@/lib/types';
+import type { Shot, VisualStyle } from '@/lib/types';
 
 // Storyboard shot ka preview: animation + script line ek-ek word karke (voiceover ki tarah) shot ki duration mein chalti hai.
 // Isse dikhta hai ki line duration mein fit hoti hai ya nahi. Pace kharab ho to ek click mein duration fix.
@@ -13,7 +13,7 @@ export function pace(line: string, dur: number) {
   return { n, wps, state, need: Math.max(2, Math.ceil(n / 2.5)) };
 }
 
-export default function ShotPreview({ shot, sketch, ratio, onDuration }: { shot: Shot; sketch?: string; ratio: string; onDuration: (n: number) => void }) {
+export default function ShotPreview({ shot, sketch, ratio, onDuration, visualStyle = 'cinematic' }: { shot: Shot; sketch?: string; ratio: string; onDuration: (n: number) => void; visualStyle?: VisualStyle }) {
   const root = useRef<HTMLDivElement>(null);
   const [vis, setVis] = useState(false), [paused, setPaused] = useState(false), [t, setT] = useState(0);
   const dur = Math.max(1, Number(shot.duration) || 1), words = wordsOf(shot.line || '');
@@ -35,7 +35,7 @@ export default function ShotPreview({ shot, sketch, ratio, onDuration }: { shot:
   return (
     <div ref={root}>
       <div className="shotp relative">
-        <AnimationStage anim={shot.anim} sketch={sketch} ratio={ratio} compact />
+        <AnimationStage anim={shot.anim} sketch={sketch} ratio={ratio} compact camera={shot.camera} visualStyle={visualStyle} />
         <div className="shotp-cap">
           {words.length ? <p>{words.map((w, i) => <span key={i} className={i < on ? 'on' : ''}>{w} </span>)}</p> : <p className="opacity-50">No script line yet</p>}
         </div>
