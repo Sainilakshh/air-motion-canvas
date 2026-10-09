@@ -72,6 +72,13 @@ export default function Studio() {
   const [hook, setHook] = useState('');
   const [shots, setShots] = useState<Shot[]>([]);
   const [committed, setCommitted] = useState(false);
+  // Script chat: user AI se baat karke script badalwata hai (R12)
+  const [chat, setChat] = useState<{ role: 'user' | 'ai'; text: string }[]>([]);
+  const [chatIn, setChatIn] = useState('');
+  const [refining, setRefining] = useState(false);
+  const [undoStack, setUndoStack] = useState<string[][]>([]);
+  const chatBox = useRef<HTMLDivElement>(null);
+  useEffect(() => { const el = chatBox.current; if (el) el.scrollTop = el.scrollHeight; }, [chat.length, refining]);
   const [busy, setBusy] = useState({ und: false, fact: false, plan: false, script: false });
   const [rb, setRb] = useState<Record<string, boolean>>({});
   const [msg, setMsg] = useState<string[]>([]);
@@ -210,7 +217,7 @@ export default function Studio() {
 
   // ---------- hook -> script ----------
   const pickHook = async (t: string) => {
-    setHook(t); setB('script', true);
+    setHook(t); setB('script', true); setChat([]); setUndoStack([]);
     try {
       const d = await post('/api/script', { idea: idea || und?.labels[0].name, concept: und?.labels[0].name, hook: t, facts: fact?.extract || '', shots: shots.map((s) => ({ title: s.title, visual: s.visual, fact: s.fact, seconds: s.duration })), lang, tone });
       setShots((s) => s.map((x, i) => ({ ...x, line: d.lines[i] ?? x.line })));
@@ -219,6 +226,30 @@ export default function Studio() {
       setShots((s) => s.map((x, i) => ({ ...x, line: i === 0 ? t : x.line || x.fact || x.visual })));  // local fallback: hook storyboard mein phir bhi flow karta hai
     }
     setB('script', false);
+  };
+
+  // ---------- script chat ----------
+  const refine = async (text: string) => {
+    const ins = text.trim();
+    if (!ins || refining || !shots.length) return;
+    const before = shots.map((s) => s.line);
+    const past = chat;
+    setChat((c) => [...c, { role: 'user', text: ins }]); setChatIn(''); setRefining(true);
+    try {
+      const d = await post('/api/refine', { idea: idea || und?.labels[0].name, concept: und?.labels[0].name, hook, facts: fact?.extract || '', shots: shots.map((s) => ({ title: s.title, visual: s.visual, seconds: s.duration, line: s.line })), history: past, instruction: ins });
+      setUndoStack((u) => [...u.slice(-9), before]);
+      setShots((a) => a.map((x, i) => ({ ...x, line: d.lines[i] ?? x.line })));
+      setChat((c) => [...c, { role: 'ai', text: d.reply || 'Done. I updated the script.' }]);
+    } catch (e: any) {
+      setChat((c) => [...c, { role: 'ai', text: e?.message === '401' ? NEED_CODE : AI_DOWN }]);
+    }
+    setRefining(false);
+  };
+  const undoScript = () => {
+    const prev = undoStack[undoStack.length - 1]; if (!prev) return;
+    setUndoStack((u) => u.slice(0, -1));
+    setShots((a) => a.map((x, i) => ({ ...x, line: prev[i] ?? x.line })));
+    setChat((c) => [...c, { role: 'ai', text: 'Went back to the previous version of the script.' }]);
   };
 
   // ---------- shot ops ----------
@@ -268,9 +299,9 @@ export default function Studio() {
     const d = p.data || {};
     setIdea(d.idea || ''); setPlatform(d.platform || 'reel'); setTarget(d.target || 30); setLangS(asLang(d.lang)); setToneS(asTone(d.tone)); setUnd(d.und || null); setSketch(d.sketch || ''); setFact(d.fact || null);
     setHooks(d.hooks || []); setHook(d.hook || ''); setShots((d.shots || []).map(normalizeShot)); setCommitted(!!d.committed);
-    setBusy({ und: false, fact: false, plan: false, script: false }); setCurId(p.id); setMsg([]); setFailDraw(false); setShowProj(false);
+    setBusy({ und: false, fact: false, plan: false, script: false }); setCurId(p.id); setMsg([]); setChat([]); setUndoStack([]); setChatIn(''); setFailDraw(false); setShowProj(false);
   };
-  const newProject = () => { runId.current++; setCurId(''); setIdea(''); setUnd(null); setSketch(''); setFact(null); setHooks([]); setHook(''); setShots([]); setCommitted(false); setMsg([]); setFailDraw(false); setBusy({ und: false, fact: false, plan: false, script: false }); };
+  const newProject = () => { runId.current++; setChat([]); setUndoStack([]); setChatIn(''); setCurId(''); setIdea(''); setUnd(null); setSketch(''); setFact(null); setHooks([]); setHook(''); setShots([]); setCommitted(false); setMsg([]); setFailDraw(false); setBusy({ und: false, fact: false, plan: false, script: false }); };
   const deleteProject = (id: string) => { const l = projects.filter((p) => p.id !== id); setProjects(l); saveProjects(l); if (curId === id) setCurId(''); };
   const renameProject = (id: string, name: string) => { const l = projects.map((p) => (p.id === id ? { ...p, name } : p)); setProjects(l); saveProjects(l); };
 
@@ -468,6 +499,24 @@ export default function Studio() {
               <div className="surface space-y-2 p-6">
                 <div className="flex items-center justify-between"><h3 className="text-lg font-semibold">Script</h3><button type="button" className="chip" onClick={() => navigator.clipboard?.writeText(scriptText)}>Copy</button></div>
                 {shots.map((s, i) => s.line && <p key={s.id} className="text-[16px] leading-relaxed text-zinc-200"><span className="label mr-3 tabular-nums">{sumDur(shots.slice(0, i))}s</span>{s.line}</p>)}
+                <div className="mt-4 space-y-3 border-t border-white/[0.07] pt-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div><h4 className="text-[15px] font-semibold">Not happy? Tell the AI what to change</h4><p className="text-[13px] text-zinc-500">Talk to it like a chat. For example: &quot;make shot 2 shorter&quot; or &quot;opening line ko aur strong karo&quot;.</p></div>
+                    <button type="button" className="chip shrink-0" disabled={!undoStack.length || refining} onClick={undoScript}>Undo</button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['Make it shorter', 'More energetic', 'Make it funnier', 'Simpler words', 'Stronger ending', 'Hinglish mein likho'].map((q) => <button key={q} type="button" className="chip !px-3 !py-1 text-[13px]" disabled={refining} onClick={() => refine(q)}>{q}</button>)}
+                  </div>
+                  {(chat.length > 0 || refining) && (
+                    <div ref={chatBox} className="max-h-60 space-y-2 overflow-y-auto rounded-xl bg-black/20 p-3">
+                      {chat.map((m, k) => <p key={k} className={`text-[14px] leading-relaxed ${m.role === 'user' ? 'text-zinc-100' : 'text-emerald-300/90'}`}><span className="label mr-2">{m.role === 'user' ? 'You' : 'AI'}</span>{m.text}</p>)}
+                      {refining && <p className="text-[14px] text-zinc-500">Rewriting the script…</p>}
+                    </div>)}
+                  <div className="flex gap-2">
+                    <input value={chatIn} onChange={(e) => setChatIn(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); refine(chatIn); } }} maxLength={600} placeholder="Type what you want changed…" aria-label="Tell the AI what to change in the script" className="inp min-w-0 flex-1" disabled={refining} />
+                    <button type="button" className="chip" disabled={refining || !chatIn.trim()} onClick={() => refine(chatIn)}>{refining ? 'Working…' : 'Send'}</button>
+                  </div>
+                </div>
               </div>)}
           </section>)}
       </main>

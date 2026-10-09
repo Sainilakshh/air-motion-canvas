@@ -84,3 +84,9 @@ Without the code: Demo mode (8 built-in concepts only). In production with no `D
 - Footage: Pexels optional. Wikimedia Commons (keyless) hamesha chalta hai; `PIXABAY_API_KEY` ho to wo bhi. Video na mile to photo (Ken Burns zoom ke saath).
 - Animations: camera drift + entrance pop, glow, contact shadow, parallax clouds/stars/planet, moving road, shot crossfade.
 - UI: bade storyboard previews, staggered reveal, hover/focus polish.
+
+
+## R12
+- **Script chat:** script ke neeche "Not happy? Tell the AI what to change" box. Chat ki tarah likho: "shot 2 chhota karo", "more funny", "Hinglish mein likho", "opening line strong karo". `/api/refine` poora script wapas deta hai; jo tumne nahi bola woh waisa hi rehta hai. Quick chips + Undo (pichle 10 versions) + chat history (last 6 messages context mein jaate hain).
+- Naya hook chunne, naya project ya project open karne par chat reset hota hai. Chat history projects mein save nahi hoti (sirf script lines save hoti hain).
+- Facts rule wahi hai: AI sirf diye gaye facts use kare, naye numbers invent na kare.
