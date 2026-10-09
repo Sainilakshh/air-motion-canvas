@@ -71,6 +71,10 @@ Without the code: Demo mode (8 built-in concepts only). In production with no `D
 - Whiteboard toolbar mein camera icon: pinch = draw, fist 1s = clear, thumbs-up = understand. MediaPipe browser mein local chalta hai. `npm install` ka postinstall wasm copy karta hai aur model download karta hai; na ho to runtime par CDN se load hota hai (internet chahiye).
 
 
+## R10
+- Intro: floating navbar + 200vh MacbookScroll hata ke sticky header, scroll-linked preview, naya hero.
+- Understanding: AI scan overlay (lock-on, label+confidence, keywords). Storyboard: script word-by-word preview + words/sec pace check, "Set Ns" fix.
+
 ## R9
 - Footage: Pexels optional. Wikimedia Commons (keyless) hamesha chalta hai; `PIXABAY_API_KEY` ho to wo bhi. Video na mile to photo (Ken Burns zoom ke saath).
 - Animations: camera drift + entrance pop, glow, contact shadow, parallax clouds/stars/planet, moving road, shot crossfade.

@@ -166,3 +166,36 @@ html { scroll-behavior: smooth; }
 .tile { box-shadow: 0 10px 30px -22px rgba(0,0,0,.9); }
 .tile:hover { box-shadow: 0 18px 40px -20px rgba(255,106,77,.35); }
 @media (prefers-reduced-motion: reduce) { .rise { animation: none; } html { scroll-behavior: auto; } }
+
+/* ---- R10: Understanding scan overlay + storyboard shot preview ---- */
+.scan-ov { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: 14px; }
+.scan-line { position: absolute; left: 0; right: 0; top: 0; height: 22%; background: linear-gradient(to bottom, transparent, rgba(255,106,77,.0) 10%, rgba(255,106,77,.22) 92%, rgba(255,160,130,.95) 100%); animation: scanl 3.6s cubic-bezier(.45,.05,.55,.95) infinite; }
+@keyframes scanl { 0% { transform: translateY(-100%); opacity: 0; } 8% { opacity: 1; } 55% { opacity: 1; } 70%, 100% { transform: translateY(460%); opacity: 0; } }
+.scan-box { position: absolute; inset: 20% 26%; animation: lock 1s .3s cubic-bezier(.2,.9,.2,1) both; }
+@keyframes lock { from { inset: 2% 2%; opacity: 0; } to { inset: 20% 26%; opacity: 1; } }
+.scan-box .c { position: absolute; width: 12%; aspect-ratio: 1; border: 0 solid #ff6a4d; filter: drop-shadow(0 0 4px rgba(255,106,77,.8)); }
+.scan-box .tl { top: 0; left: 0; border-top-width: 2px; border-left-width: 2px; } .scan-box .tr { top: 0; right: 0; border-top-width: 2px; border-right-width: 2px; }
+.scan-box .bl { bottom: 0; left: 0; border-bottom-width: 2px; border-left-width: 2px; } .scan-box .br { bottom: 0; right: 0; border-bottom-width: 2px; border-right-width: 2px; }
+.scan-tag { position: absolute; left: 5%; top: 8%; display: inline-flex; gap: 6px; align-items: baseline; max-width: 70%; padding: 4px 9px; border-radius: 8px; background: rgba(10,10,12,.78); border: 1px solid rgba(255,106,77,.55); color: #fff; font: 600 11px/1.1 ui-monospace, monospace; letter-spacing: .06em; text-transform: uppercase; animation: tagin .5s var(--d, 1s) both; backdrop-filter: blur(4px); }
+.scan-tag b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; } .scan-tag em { font-style: normal; color: #ff9d8a; }
+.scan-tag.alt { top: auto; bottom: 8%; left: 5%; border-color: rgba(139,92,246,.6); color: #ddd0ff; text-transform: none; letter-spacing: 0; font-family: inherit; }
+.scan-kw { position: absolute; padding: 3px 8px; border-radius: 9999px; font-size: 10px; color: #e5e1ea; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.18); animation: tagin .5s var(--d, 1.6s) both, bob 4s calc(var(--d, 1.6s) + .5s) ease-in-out infinite alternate; white-space: nowrap; }
+.scan-kw.k0 { right: 5%; top: 10%; } .scan-kw.k1 { right: 6%; top: 38%; } .scan-kw.k2 { right: 5%; bottom: 26%; } .scan-kw.k3 { right: 7%; bottom: 8%; }
+@keyframes tagin { from { opacity: 0; transform: translateY(6px) scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes bob { to { transform: translateY(-4px); } }
+@container (max-width: 240px) { .scan-kw { display: none; } .scan-tag.alt { display: none; } }
+.shotp-cap { position: absolute; inset: auto 0 0 0; padding: 22px 10px 8px; background: linear-gradient(to top, rgba(0,0,0,.85), transparent); border-radius: 0 0 14px 14px; pointer-events: none; }
+.shotp-cap p { margin: 0; font-size: 11px; line-height: 1.3; font-weight: 600; color: rgba(255,255,255,.4); text-shadow: 0 1px 8px rgba(0,0,0,.8); }
+.shotp-cap span.on { color: #fff; }
+.shotp-play { position: absolute; top: 8px; right: 8px; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 9999px; background: rgba(0,0,0,.55); color: #fff; opacity: 0; transition: opacity .2s; }
+.shotp:hover .shotp-play, .shotp-play:focus-visible { opacity: 1; }
+.shotp-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,.12); border-radius: 0 0 14px 14px; overflow: hidden; } .shotp-bar i { display: block; height: 100%; background: linear-gradient(90deg, #ff6a4d, #8b5cf6); transition: width .1s linear; }
+@media (prefers-reduced-motion: reduce) { .scan-line, .scan-kw, .scan-box { animation: none !important; } }
+
+/* ---- R10: intro hero ---- */
+.hero-glow { position: absolute; border-radius: 50%; filter: blur(90px); pointer-events: none; }
+.hero-glow.a { width: 38rem; height: 38rem; left: 50%; top: 8%; margin-left: -34rem; background: rgba(255,106,77,.28); animation: gl1 14s ease-in-out infinite alternate; }
+.hero-glow.b { width: 34rem; height: 34rem; left: 50%; top: 18%; margin-left: -2rem; background: rgba(139,92,246,.26); animation: gl2 17s ease-in-out infinite alternate; }
+@keyframes gl1 { to { transform: translate(6rem, 3rem) scale(1.1); } } @keyframes gl2 { to { transform: translate(-5rem, 4rem) scale(1.15); } }
+.hero-grid { position: absolute; inset: 0; pointer-events: none; opacity: .5; background-image: radial-gradient(rgba(255,255,255,.12) 1px, transparent 1px); background-size: 28px 28px; -webkit-mask-image: radial-gradient(ellipse at 50% 40%, #000 0, transparent 70%); mask-image: radial-gradient(ellipse at 50% 40%, #000 0, transparent 70%); }
+@media (prefers-reduced-motion: reduce) { .hero-glow { animation: none; } }

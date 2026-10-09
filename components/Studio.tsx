@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { IconArrowDown, IconArrowUp, IconCheck, IconDownload, IconPlayerPlay, IconPlus, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { loadProjects, saveProjects, type Proj } from '@/lib/projects';
 import AirCanvas from './AirCanvas';
-import AnimationStage from './AnimationStage';
+import ScanStage from '@/components/studio/ScanStage';
+import ShotPreview from '@/components/studio/ShotPreview';
 import TopBar from './studio/TopBar';
 import Composer, { type PlatformOpt } from './studio/Composer';
 import PipelineRail, { type RailStep } from './studio/PipelineRail';
@@ -320,7 +321,7 @@ export default function Studio() {
                         {und.labels.slice(1).map((l) => <button key={l.name} type="button" className="chip" onClick={() => { setIdea(l.name); run({ text: l.name, keepSketch: true }); }}>{l.name} <span className="text-zinc-500">{Math.round(l.confidence * 100)}%</span></button>)}</div>)}
                     </>)}
                   </div>
-                  {und && <div style={{ width: P.aspect === '9:16' ? 168 : 320 }} className="max-w-full justify-self-center"><AnimationStage anim={und.anim} sketch={sketch || undefined} ratio={P.ratio} label={`${und.labels[0].name} → ${und.intent}`} /></div>}
+                  {und && <div style={{ width: P.aspect === '9:16' ? 200 : 400 }} className="max-w-full justify-self-center"><ScanStage anim={und.anim} sketch={sketch || undefined} ratio={P.ratio} label={und.labels[0].name} intent={und.intent} pct={pct} keywords={und.keywords} /></div>}
                 </div>
               </section>)}
             {(busy.fact || fact) && (
@@ -400,8 +401,7 @@ export default function Studio() {
             </div>
             {shots.map((s, i) => (
               <div id={'shot-' + s.id} key={s.id} className="surface rise grid scroll-mt-24 gap-4 p-4 sm:p-5 md:grid-cols-[minmax(150px,200px)_minmax(150px,200px)_minmax(0,1fr)]" style={{ ['--i' as any]: Math.min(i, 8) }}>
-                <div><p className="label mb-1.5">Visual</p><AnimationStage anim={s.anim} sketch={stageFor(s)} ratio={P.ratio} compact />
-                  <p className="mt-1.5 truncate text-[12px] text-zinc-500">{s.anim.primitives.map((p) => p.type).join(' + ')}</p></div>
+                <div><p className="label mb-1.5">Preview</p><ShotPreview shot={s} sketch={stageFor(s)} ratio={P.ratio} onDuration={(n) => patch(s.id, { duration: n })} /></div>
                 <div><p className="label mb-1.5">B-roll</p>
                   {s.broll ? <><Clip it={s.broll} ratio={P.ratio} /><span className="mt-1 block truncate text-[12px] text-zinc-500">{s.broll.credit}</span></>
                     : <div className="surface-hi flex items-center p-3 text-[13px] text-zinc-500" style={{ aspectRatio: P.ratio }}>{s.note || 'Finding B-roll…'}</div>}
