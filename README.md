@@ -55,3 +55,23 @@ Saare /api routes `x-access-code` header maangte hain. Dev mein code set na ho t
 3. Vercel: Project -> Settings -> Environment Variables: `DEMO_ACCESS_CODE`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `PIXABAY_API_KEY`, then Redeploy.
 4. Open `/studio`, type the same code in the "Access code" box. Badge turns to "Live AI".
 Without the code: Demo mode (8 built-in concepts only). In production with no `DEMO_ACCESS_CODE` set, all APIs stay locked on purpose.
+
+## What's new in r7 (UI + features)
+- **Composer:** ek hero card — Type | Draw switch, platform chips (9:16 / 16:9 icons), duration stepper, ek hi primary "Generate story". Voice input (mic) Chrome/Edge/Safari mein; unsupported browser mein button hide hota hai.
+- **Top bar:** Projects popover (new / save / open / rename / delete, autosave) aur status popover (Live AI / AI issue / Demo mode, access code yahin).
+- **Pipeline rail:** Understand → Research → Plan → B-roll → Script, har step ka live state.
+- **Empty state:** 8 concept tiles + example ideas.
+- **Play storyboard (animatic):** shots ek ke baad ek chalte hain (B-roll clip ya concept animation + script caption). Space = play/pause, ← → = shots, Esc = close, 1×/2×, optional voice (browser TTS, free).
+- **Whiteboard:** pen pressure, One Euro smoothing, curved strokes, eraser, brush sizes, undo/redo (Ctrl/Cmd+Z), palm rejection, two-finger tap = undo, shortcuts (E, P, [ ], Ctrl+Enter).
+- **Intro:** lamp hero (coral/violet) Macbook scroll ke upar.
+- Preview-strip carousel Studio se hata kar uski jagah animatic aaya; carousel Intro mein hi hai.
+
+## Footage (Pexels + Pixabay) and camera drawing
+- `PEXELS_API_KEY` (primary) aur `PIXABAY_API_KEY` (fallback) dono optional; ek bhi ho to chalega. Footage dono se aata hai, keywords se rank hota hai (subject word ka zyada weight), kam-relevant hata diye jaate hain.
+- Whiteboard toolbar mein camera icon: pinch = draw, fist 1s = clear, thumbs-up = understand. MediaPipe browser mein local chalta hai. `npm install` ka postinstall wasm copy karta hai aur model download karta hai; na ho to runtime par CDN se load hota hai (internet chahiye).
+
+
+## R9
+- Footage: Pexels optional. Wikimedia Commons (keyless) hamesha chalta hai; `PIXABAY_API_KEY` ho to wo bhi. Video na mile to photo (Ken Burns zoom ke saath).
+- Animations: camera drift + entrance pop, glow, contact shadow, parallax clouds/stars/planet, moving road, shot crossfade.
+- UI: bade storyboard previews, staggered reveal, hover/focus polish.

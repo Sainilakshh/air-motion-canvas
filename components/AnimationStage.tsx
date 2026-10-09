@@ -28,7 +28,8 @@ function build(p: Primitive, kind: 'img' | 'svg' | 'emoji'): KF {
   }
 }
 
-const SPARK = [{ l: '15%', t: '0s' }, { l: '38%', t: '1.4s' }, { l: '62%', t: '2.6s' }, { l: '82%', t: '0.8s' }];
+const SPARK = [{ l: '12%', t: '0s', z: 0.8 }, { l: '27%', t: '2.1s', z: 1.2 }, { l: '38%', t: '1.4s', z: 0.7 }, { l: '51%', t: '3.3s', z: 1 }, { l: '62%', t: '2.6s', z: 1.4 }, { l: '73%', t: '0.6s', z: 0.9 }, { l: '82%', t: '0.8s', z: 1.1 }, { l: '92%', t: '3.8s', z: 0.8 }];
+const CLOUDS = [{ t: '12%', w: 26, d: 38, o: 0.5 }, { t: '28%', w: 18, d: 55, o: 0.35 }, { t: '6%', w: 14, d: 70, o: 0.25 }];
 
 // Sketch PNG white-on-black hai. Black ko transparent karte hain (luminance -> alpha), warna animated layers ke andar kala box dikhta hai.
 const cleanCache = new Map<string, string>();
@@ -60,7 +61,7 @@ function useTransparentSketch(src?: string) {
 }
 
 export default function AnimationStage({ anim, sketch, ratio = '16 / 9', label, compact = false }: { anim: AnimSpec; sketch?: string; ratio?: string; label?: string; compact?: boolean }) {
-  const root = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLDivElement>(null), cam = useRef<HTMLDivElement>(null), enter = useRef<HTMLDivElement>(null);
   const layers = useRef<(HTMLDivElement | null)[]>([]);
   const clean = useTransparentSketch(sketch);
   const kind: 'img' | 'svg' | 'emoji' = sketch ? 'img' : anim.svg ? 'svg' : 'emoji';
@@ -78,6 +79,11 @@ export default function AnimationStage({ anim, sketch, ratio = '16 / 9', label, 
       el.style.transformOrigin = k.origin || '50% 50%';
       try { running.push(el.animate(k.frames, k.opts)); } catch {}
     });
+    // Camera: dheere push-in + drift (parallax feel) aur entrance pop. Dono ek baar set, loop mein nahi.
+    try {
+      if (cam.current) running.push(cam.current.animate([{ transform: 'scale(1) translate(0,0)' }, { transform: 'scale(1.07) translate(-1.2%,-0.8%)' }], { duration: 14000, direction: 'alternate', iterations: Infinity, easing: 'ease-in-out' }));
+      if (enter.current && !reduce) enter.current.animate([{ opacity: 0, transform: 'scale(.55) translateY(10%)', filter: 'blur(6px)' }, { opacity: 1, transform: 'scale(1) translateY(0)', filter: 'blur(0)' }], { duration: 750, easing: 'cubic-bezier(.34,1.56,.64,1)', fill: 'backwards' });
+    } catch {}
     if (reduce) running.forEach((a) => a.pause());
     // offscreen stages pause ho jaate hain (performance)
     const io = typeof IntersectionObserver !== 'undefined' && root.current ? new IntersectionObserver(([e]) => running.forEach((a) => (e.isIntersecting && !reduce ? a.play() : a.pause()))) : null;
@@ -86,6 +92,8 @@ export default function AnimationStage({ anim, sketch, ratio = '16 / 9', label, 
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fx = new Set(anim.effects);
+  const lead = anim.primitives[0];
+  const shadowFor = lead && ['bounce', 'float', 'pulse', 'sway'].includes(lead.type) && ['ground', 'sky', 'none', 'night'].includes(anim.backdrop) ? `${build(lead, kind).opts.duration}ms` : '';
   const subject = (
     <div className="relative flex items-center justify-center" style={{ width: '100%', height: '100%' }}>
       {kind === 'img' && clean && <img src={clean} alt="" className="max-h-[62%] max-w-[62%] object-contain" style={{ filter: 'drop-shadow(0 0 8px rgba(255,106,77,.7))' }} />}
@@ -106,8 +114,15 @@ export default function AnimationStage({ anim, sketch, ratio = '16 / 9', label, 
       {anim.backdrop === 'ocean' && ['rgba(14,116,144,.55)', 'rgba(34,211,238,.25)'].map((c, i) => (
         <svg key={i} className="fx-wave" viewBox="0 0 200 20" preserveAspectRatio="none" style={{ animationDuration: `${7 - i * 2}s`, bottom: `${i * 4}%` }}><path d="M0 10 Q25 0 50 10 T100 10 T150 10 T200 10 V20 H0Z" fill={c} /></svg>))}
       {fx.has('bubbles') && [10, 30, 55, 80].map((l, i) => <span key={l} className="fx-bubble" style={{ left: `${l}%`, width: 8 + i * 3, height: 8 + i * 3, animationDelay: `${i * 1.3}s` }} />)}
-      {fx.has('sparkles') && SPARK.map((s) => <span key={s.l} className="fx-float" style={{ left: s.l, animationDelay: s.t }}>✦</span>)}
-      {nested}
+      {fx.has('sparkles') && SPARK.map((s) => <span key={s.l} className="fx-float" style={{ left: s.l, animationDelay: s.t, fontSize: `${s.z}em`, animationDuration: `${4 + s.z * 1.6}s` }}>✦</span>)}
+      {anim.backdrop === 'sky' && CLOUDS.map((c, i) => <span key={i} className="fx-cloud" style={{ top: c.t, width: `${c.w}%`, opacity: c.o, animationDuration: `${c.d}s`, animationDelay: `${-i * 17}s` }} />)}
+      {anim.backdrop === 'space' && <><div className="fx-stars2" /><span className="fx-planet" /></>}
+      {anim.backdrop === 'ground' && <div className="fx-road" />}
+      <span className="fx-glow" />
+      <div ref={cam} className="absolute inset-0">
+        {shadowFor && <span className="fx-shadow" style={{ animationDuration: shadowFor }} />}
+        <div ref={enter} className="absolute inset-0">{nested}</div>
+      </div>
       <i className="hud-c tl" /><i className="hud-c tr" /><i className="hud-c bl" /><i className="hud-c br" />
       {!compact && <div className="hud absolute left-4 bottom-3 right-4 flex justify-between gap-2"><span className="truncate">{label}</span><span className="truncate">{anim.primitives.map((p) => p.type).join(' + ')}</span></div>}
     </div>

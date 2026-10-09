@@ -1,13 +1,15 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { IconCheck, IconLock } from '@tabler/icons-react';
+import { IconArrowDown, IconArrowUp, IconCheck, IconDownload, IconPlayerPlay, IconPlus, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { loadProjects, saveProjects, type Proj } from '@/lib/projects';
 import AirCanvas from './AirCanvas';
-import { TextReveal } from './ui/text-reveal';
-import { GooeyInput } from './ui/gooey-input';
-import { Card, Carousel } from './ui/apple-cards-carousel';
-import { ImageGenerationLoader } from './ui/image-generation-loader';
 import AnimationStage from './AnimationStage';
+import TopBar from './studio/TopBar';
+import Composer, { type PlatformOpt } from './studio/Composer';
+import PipelineRail, { type RailStep } from './studio/PipelineRail';
+import EmptyState from './studio/EmptyState';
+import Animatic from './studio/Animatic';
+import { ImageGenerationLoader } from './ui/image-generation-loader';
 import { DEMO, fallbackHooks, fallbackShots, findDemo, normalizeShot } from '@/lib/demo';
 import { heuristicAnim } from '@/lib/animation';
 import type { Hook, Item, RecognizeResult, Shot } from '@/lib/types';
@@ -39,11 +41,14 @@ const PRESETS = {
   youtube: { label: 'YouTube', aspect: '16:9', ratio: '16 / 9', target: 120, shots: [5, 6] },
 };
 type PK = keyof typeof PRESETS;
+const PLATFORMS: PlatformOpt[] = [{ key: 'reel', label: 'Instagram Reel', short: 'Reel', aspect: '9:16' }, { key: 'short', label: 'YouTube Short', short: 'Short', aspect: '9:16' }, { key: 'youtube', label: 'YouTube', short: 'YouTube', aspect: '16:9' }];
+const EXAMPLE_IDEAS = ['A 30-second video about why rockets are expensive', 'How solar panels turn sunlight into electricity', 'The story of a tree growing from a tiny seed'];
+const CONCEPTS = DEMO.map((d) => ({ name: d.r.labels[0].name, intent: d.r.intent, emoji: d.r.anim.emoji || '✨', backdrop: d.r.anim.backdrop }));
 const kwq = (k: string[]) => k.map((x) => x.trim()).filter(Boolean).join('|');
 const sumDur = (a: Shot[]) => a.reduce((t, s) => t + (Number(s.duration) || 0), 0);
 
 const Sk = ({ n = 2 }: { n?: number }) => <div className="space-y-3">{Array.from({ length: n }).map((_, i) => <div key={i} className="h-3 rounded bg-white/10 animate-pulse" style={{ width: `${92 - i * 20}%` }} />)}</div>;
-const Fld = ({ label, children }: { label: string; children: React.ReactNode }) => <label className="block text-sm"><span className="mb-1 block text-zinc-400">{label}</span>{children}</label>;
+const Fld = ({ label, children }: { label: string; children: React.ReactNode }) => <label className="block"><span className="label mb-1 block">{label}</span>{children}</label>;
 function Clip({ it, ratio }: { it: Item; ratio: string }) {  // hover par chhota preview
   const [on, setOn] = useState(false);
   return (
@@ -55,7 +60,8 @@ function Clip({ it, ratio }: { it: Item; ratio: string }) {  // hover par chhota
 
 export default function Studio() {
   const [idea, setIdea] = useState('');
-  const [draw, setDraw] = useState(false);
+  const [mode, setMode] = useState<'type' | 'draw'>('type');
+  const [play, setPlay] = useState(false);
   const [und, setUnd] = useState<RecognizeResult | null>(null);
   const [sketch, setSketch] = useState('');
   const [fact, setFact] = useState<Fact | null>(null);
@@ -77,9 +83,6 @@ export default function Studio() {
   const [access, setAccess] = useState<'checking' | 'live' | 'locked'>('checking');
   const [aiStatus, setAiStatus] = useState('ok');
   const [accessInfo, setAccessInfo] = useState({ ai: true, footage: true });
-  const [helpOpen, setHelpOpen] = useState(false);
-  const [searchW, setSearchW] = useState(420);
-  const searchRef = useRef<HTMLDivElement>(null);
   const runId = useRef(0);
   const projRef = useRef<Proj[]>([]); projRef.current = projects;
   const platRef = useRef<PK>(platform); platRef.current = platform;
@@ -97,12 +100,6 @@ export default function Studio() {
     }, 400);
     return () => clearTimeout(t);
   }, [codeVal]);
-  useEffect(() => {
-    const el = searchRef.current; if (!el) return;
-    const ro = new ResizeObserver(() => setSearchW(Math.max(240, el.clientWidth - 64)));
-    ro.observe(el); setSearchW(Math.max(240, el.clientWidth - 64));
-    return () => ro.disconnect();
-  }, []);
   // Ek hi banner: locked/AI-down ke messages ek dusre ko replace karte hain, stack nahi hote
   const isSoft = (y: string) => y.startsWith(AI_DOWN) || y === NEED_CODE;
   const warn = (m0: string) => {
@@ -258,198 +255,187 @@ export default function Studio() {
     warn(k === 'locked' ? NEED_CODE : AI_DOWN); setFailDraw(true);
   };
 
+  const submit = () => { if (idea.trim()) { setMode('type'); run({ text: idea.trim() }); } };
+  const generating = busy.und || busy.fact || busy.plan;
+  const anyBusy = generating || busy.script;
+  const started = !!und || anyBusy || shots.length > 0;
+  const stp = (active: boolean, done: boolean): RailStep['state'] => (active ? 'active' : done ? 'done' : 'pending');
+  const brollSearching = shots.some((s) => s.note === 'Searching B-roll...');
+  const rail: RailStep[] = [
+    { label: 'Understand', state: stp(busy.und, !!und) },
+    { label: 'Research', state: stp(busy.fact, !!fact || (!!und && !busy.und && !busy.fact && (busy.plan || shots.length > 0))) },
+    { label: 'Plan', state: stp(busy.plan, shots.length > 0) },
+    { label: 'B-roll', state: stp(shots.length > 0 && brollSearching, shots.length > 0 && !brollSearching) },
+    { label: 'Script', state: stp(busy.script, !!hook && shots.some((s) => !!s.line)) },
+  ];
+  const pct = und ? Math.round(und.labels[0].confidence * 100) : 0;
+
   return (
-    <main className="mx-auto max-w-[1360px] space-y-6 px-8 py-10 xl:px-12">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div><h1 className="text-5xl font-bold tracking-tight"><TextReveal text="Air Motion Canvas" /></h1><p className="mt-3 text-lg text-zinc-400">Rough idea → structured visual story</p></div>
-        <div className="relative">
-          <div className="flex items-center gap-2 rounded-full border border-[#26262c] bg-[#131316] py-1 pl-3 pr-1">
-            {access === 'live' ? <IconCheck size={16} className="text-emerald-400" /> : <IconLock size={16} className={access === 'checking' ? 'text-zinc-500' : 'text-coral'} />}
-            <input type="password" value={codeVal} placeholder="Access code" aria-label="Access code" autoComplete="off" onChange={(e) => { setCodeVal(e.target.value); try { localStorage.setItem('amc.code', e.target.value); } catch {} }} className="w-32 bg-transparent text-[15px] outline-none placeholder:text-zinc-500" />
-            <button type="button" onClick={() => setHelpOpen((v) => !v)} className={`rounded-full px-3 py-1 text-sm font-medium ${access === 'live' ? (aiStatus !== 'ok' ? 'bg-amber-500/15 text-amber-300' : 'bg-emerald-500/15 text-emerald-300') : 'bg-white/5 text-zinc-300'}`}>
-              {access === 'live' ? (aiStatus !== 'ok' ? 'AI issue' : 'Live AI') : access === 'checking' ? 'Checking…' : 'Demo mode'}
-            </button>
-          </div>
-          {helpOpen && (
-            <div className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-[#232328] bg-[#131316] p-4 text-sm leading-relaxed text-zinc-300 shadow-xl">
-              <p className="mb-1 font-semibold text-white">{access === 'live' ? 'Live AI is on' : 'Demo mode'}</p>
-              {access === 'live'
-                ? <p>Code sahi hai. Gemini + B-roll chalenge{!accessInfo.ai ? ' (lekin GEMINI_API_KEY / GEMINI_MODEL server par set nahi hain)' : ''}{!accessInfo.footage ? ' (PIXABAY_API_KEY set nahi hai, footage nahi aayegi)' : ''}.</p>
-                : <p>Bina code ke sirf 8 demo concepts chalte hain: Rocket, Earth, Solar, Tree, Car, Ball, House, Water. Live AI ke liye server par jo <code className="text-coral">DEMO_ACCESS_CODE</code> set hai wahi code yahan dalo.</p>}
-              <button className="mt-2 text-zinc-500 underline" onClick={() => setHelpOpen(false)}>Close</button>
-            </div>)}
-        </div>
-      </header>
-      <div className="flex flex-wrap items-center gap-2">
-        <div ref={searchRef} className="min-w-[260px] flex-1">
-          <GooeyInput value={idea} onValueChange={setIdea} defaultOpen keepOpen expandedWidth={searchW} expandedOffset={56} className="w-full !justify-start" placeholder="Your idea, e.g. A 30-second video about why rockets are expensive"
-            onKeyDown={(e: any) => e.key === 'Enter' && idea.trim() && run({ text: idea.trim() })} />
-        </div>
-        <button className="btn btn-main px-6" disabled={!idea.trim()} onClick={() => run({ text: idea.trim() })}>Start</button>
-        <button className="btn" onClick={() => setDraw((d) => !d)}>{draw ? 'Hide whiteboard' : 'Draw on whiteboard'}</button>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 text-[15px]">
-        {(Object.keys(PRESETS) as PK[]).map((k) => <button key={k} onClick={() => applyPreset(k)} className={`btn ${platform === k ? 'btn-main' : ''}`}>{PRESETS[k].label}</button>)}
-        <label className="flex items-center gap-2 text-zinc-400">Target <input type="number" min={5} value={target} onChange={(e) => setTarget(Number(e.target.value) || 0)} className="inp w-16 text-center" />s</label>
-        {shots.length > 0 && <button className="btn text-sm" onClick={() => fit(target)}>Fit shots to target</button>}
-        <span className="flex-1" />
-        {savedAt > 0 && curId && <span className="text-sm text-zinc-500">Saved {new Date(savedAt).toLocaleTimeString()}</span>}
-        <button className="btn" onClick={newProject}>New</button>
-        <button className="btn" onClick={saveProject}>Save</button>
-        <button className="btn" onClick={() => setShowProj((v) => !v)}>My Projects ({projects.length})</button>
-      </div>
-      {showProj && (
-        <div className="glass rounded-2xl p-5 space-y-2 text-[15px]">
-          {projects.length === 0 && <p className="opacity-60">No saved projects yet — press Save.</p>}
-          {projects.map((p) => (
-            <div key={p.id} className={`flex gap-2 items-center ${p.id === curId ? 'text-coral' : ''}`}>
-              <input value={p.name} onChange={(e) => renameProject(p.id, e.target.value)} className="inp flex-1" />
-              <span className="text-sm opacity-50 hidden sm:inline">{new Date(p.updated).toLocaleString()}</span>
-              <button className="btn text-sm" onClick={() => openProject(p)}>Open</button>
-              <button className="btn text-sm" onClick={() => deleteProject(p.id)}>Delete</button>
-            </div>))}
-        </div>)}
-      {draw && <div className="glass rounded-2xl p-5"><AirCanvas onResult={onDrawResult} onError={onDrawError} /></div>}
-      {(busy.und || busy.fact || busy.plan || busy.script) && (
-        <div className="relative h-32 rounded-2xl overflow-hidden bg-neutral-900 border border-white/5">
-          <ImageGenerationLoader effect="scale-wave" easing="ease-in-out" text={busy.und ? 'Analysing' : busy.fact ? 'Researching' : 'Writing'} cellSize={3} gap={1} bandHeight={48} colors={['#ff7a62', '#8b5cf6']} />
-        </div>)}
-      {msg.map((m) => <p key={m} className="rounded-2xl border border-[#2a2a30] bg-[#131316] px-4 py-3 text-[15px] text-zinc-300">{m}</p>)}
-      {failDraw && (
-        <div className="flex flex-wrap gap-2 items-center text-[15px]"><span className="text-zinc-400">Try a demo concept:</span>
-          {DEMO.map((d) => <button key={d.r.labels[0].name} className="btn text-sm" onClick={() => { setIdea(d.r.labels[0].name); run({ text: d.r.labels[0].name }); }}>{d.r.labels[0].name}</button>)}</div>)}
+    <div className="min-h-screen">
+      <TopBar saved={savedAt} projects={projects} curId={curId} onNew={newProject} onSave={saveProject} onOpen={openProject} onDelete={deleteProject} onRename={renameProject}
+        access={access} aiStatus={aiStatus} accessInfo={accessInfo} codeVal={codeVal} onCode={(v) => { setCodeVal(v); try { localStorage.setItem('amc.code', v); } catch {} }} />
+      <main className="mx-auto max-w-[1200px] space-y-6 px-5 pb-28 pt-10">
+        {!started && (
+          <div className="pb-2 pt-4 text-center">
+            <h1 className="mx-auto max-w-[16ch] text-[clamp(38px,6vw,68px)] font-semibold leading-[1.04] tracking-tight">Turn a rough idea into a <span style={{ background: 'linear-gradient(90deg,#ff6a4d,#8b5cf6)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>visual story</span>.</h1>
+            <p className="mx-auto mt-4 max-w-xl text-[17px] text-zinc-400">Type it, say it, or sketch it. You get the concept, B-roll, research, hooks, a script and a storyboard.</p>
+          </div>)}
 
-      {/* 1. Understanding + generated visual (appears first) */}
-      {(busy.und || und) && (
-        <section className="glass rounded-2xl p-6 text-[15px] grid md:grid-cols-[1fr_auto] gap-4">
-          <div className="space-y-2">
-            <h2 className="font-semibold grad text-xl">Understanding</h2>
-            {busy.und && <><p className="animate-pulse">Understanding...</p><Sk n={3} /></>}
-            {und && (<>
-              <p><b>{und.labels[0].name}</b> → {und.intent} ({Math.round(und.labels[0].confidence * 100)}%)</p>
-              <p className="opacity-80">{und.context} | Visual: {und.visualDirection}</p>
-              <div className="flex flex-wrap gap-2">{und.keywords.map((k) => <span key={k} className="glass rounded-full px-2 py-0.5 text-sm">{k}</span>)}</div>
-              {und.labels.length > 1 && (<div className="flex flex-wrap gap-2 items-center"><span className="opacity-70">Did you mean?</span>
-                {und.labels.slice(1).map((l) => <button key={l.name} className="btn text-sm" onClick={() => { setIdea(l.name); run({ text: l.name, keepSketch: true }); }}>{l.name} ({Math.round(l.confidence * 100)}%)</button>)}</div>)}
-            </>)}
-          </div>
-          {und && <div style={{ width: P.aspect === '9:16' ? 200 : 400 }} className="max-w-full"><AnimationStage anim={und.anim} sketch={sketch || undefined} ratio={P.ratio} label={`${und.labels[0].name} → ${und.intent}`} /></div>}
-        </section>)}
+        <Composer mode={mode} setMode={setMode} idea={idea} setIdea={setIdea} onSubmit={submit} busy={generating}
+          platforms={PLATFORMS} platform={platform} setPlatform={(k) => applyPreset(k as PK)} target={target} setTarget={setTarget} onNotice={warn}>
+          <AirCanvas onResult={onDrawResult} onError={onDrawError} />
+        </Composer>
 
-      {/* 2. Research */}
-      {(busy.fact || fact) && (
-        <section className="glass rounded-2xl p-6 text-[15px]">
-          <h2 className="font-semibold grad text-xl">Research</h2>
-          {busy.fact && <><p className="animate-pulse mb-2">Fetching facts...</p><Sk /></>}
-          {fact && <><p>{fact.extract}</p><p className="text-sm opacity-60 mt-1">Source: {fact.url ? <a className="underline" href={fact.url} target="_blank" rel="noreferrer">{fact.source}{fact.source === 'Wikipedia' ? ' (CC BY-SA)' : ''}</a> : fact.source}</p></>}
-        </section>)}
+        {started && <PipelineRail steps={rail} />}
+        {anyBusy && (
+          <div className="relative h-24 overflow-hidden rounded-2xl border border-white/[0.06] bg-neutral-900">
+            <ImageGenerationLoader effect="scale-wave" easing="ease-in-out" text={busy.und ? 'Analysing' : busy.fact ? 'Researching' : 'Writing'} cellSize={3} gap={1} bandHeight={40} colors={['#ff7a62', '#8b5cf6']} />
+          </div>)}
+        {msg.map((m) => <p key={m} className="surface-hi px-4 py-3 text-[15px] text-zinc-300" role="status">{m}</p>)}
+        {failDraw && (
+          <div className="flex flex-wrap items-center gap-2"><span className="label">Try a demo concept:</span>
+            {DEMO.map((d) => <button key={d.r.labels[0].name} type="button" className="chip" onClick={() => { setIdea(d.r.labels[0].name); setMode('type'); run({ text: d.r.labels[0].name }); }}>{d.r.labels[0].name}</button>)}</div>)}
 
-      {/* 3. Hooks (+ script loading) */}
-      {(busy.plan || hooks.length > 0) && (
-        <section className="glass rounded-2xl p-6 text-[15px] space-y-2">
-          <h2 className="font-semibold grad text-xl">Hook</h2>
-          {busy.plan && <><p className="animate-pulse">Planning shots + hooks...</p><Sk n={3} /></>}
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{hooks.map((h) => (
-            <button key={h.style} onClick={() => pickHook(h.text)} className={`text-left rounded-2xl p-6 text-base leading-relaxed border ${hook === h.text ? 'border-orange-400 bg-orange-400/10' : 'border-white/10 hover:border-orange-400/40'}`}>
-              <span className="text-sm opacity-60">{h.style}</span><br />{h.text}</button>))}</div>
-          {hooks.length > 0 && !hook && <p className="text-sm opacity-60">Pick a hook — it becomes the opening of your script and storyboard.</p>}
-          {busy.script && <p className="animate-pulse">Writing script...</p>}
-        </section>)}
+        {!started && <EmptyState concepts={CONCEPTS} examples={EXAMPLE_IDEAS} onPick={(n) => { setIdea(n); setMode('type'); run({ text: n }); }} onExample={(t) => { setIdea(t); setMode('type'); run({ text: t }); }} />}
 
-      {/* 4. Content plan: edit/refine, then commit */}
-      {(busy.plan || shots.length > 0) && !committed && (
-        <section className="glass rounded-2xl p-6 text-[15px] space-y-3">
-          <div className="flex items-center justify-between"><h2 className="font-semibold grad text-xl">Content plan</h2><span className="text-sm opacity-60">Edit anything, then commit to the storyboard</span></div>
-          {busy.plan && <Sk n={4} />}
-          {shots.map((s, i) => (
-            <div key={s.id} className="rounded-lg border border-white/10 p-3 space-y-2">
-              <div className="flex gap-2 items-end">
-                <span className="opacity-50 pb-1">{String(i + 1).padStart(2, '0')}</span>
-                <div className="flex-1"><Fld label="Shot title"><input value={s.title} onChange={(e) => patch(s.id, { title: e.target.value })} className="inp w-full font-semibold" /></Fld></div>
-                <div className="w-16"><Fld label="Seconds"><input type="number" value={s.duration} onChange={(e) => patch(s.id, { duration: Number(e.target.value) })} className="inp w-full" /></Fld></div>
-              </div>
-              <div className="grid md:grid-cols-2 gap-2">
-                <Fld label="Visual suggestion"><input value={s.visual} onChange={(e) => patch(s.id, { visual: e.target.value })} className="inp w-full" /></Fld>
-                <Fld label="B-roll suggestion"><input value={s.brollIdea} onChange={(e) => patch(s.id, { brollIdea: e.target.value })} className="inp w-full" /></Fld>
-                <Fld label="Relevant fact"><input value={s.fact} onChange={(e) => patch(s.id, { fact: e.target.value })} className="inp w-full" /></Fld>
-                <Fld label="Script line"><input value={s.line} onChange={(e) => patch(s.id, { line: e.target.value })} className="inp w-full" /></Fld>
-              </div>
-              <div className="flex gap-2 text-sm items-center">
-                <button className="btn" disabled={rb[s.id]} onClick={() => regen(s, i)}>{rb[s.id] ? 'Regenerating...' : 'Regenerate'}</button>
-                <button className="btn" onClick={() => setShots((a) => a.filter((x) => x.id !== s.id))}>Remove</button>
-              </div>
-            </div>))}
-          <div className="flex gap-2 items-center">
-            <button className="btn text-sm" onClick={addShot}>+ Add shot</button><span className="flex-1" />
-            <span className="text-sm opacity-60">Total ~{total}s</span>
-            <button className="btn btn-main" disabled={!shots.length || busy.plan} onClick={() => setCommitted(true)}>Commit to storyboard →</button>
-          </div>
-        </section>)}
-
-      {/* 5. Storyboard */}
-      {shots.length > 0 && committed && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <h2 className="font-semibold grad text-xl">Storyboard</h2>
-            <div className="flex items-center gap-2 text-[15px]">
-              <span className={total > target ? 'text-pink-400' : 'opacity-70'}>Total ~{total}s / target {target}s</span>
-              <button className="btn text-sm" onClick={() => setCommitted(false)}>Edit plan</button>
-              <button className="btn text-sm" onClick={exportMd}>Export .md</button>
-            </div>
-          </div>
-          {hook && <p className="glass rounded-lg px-3 py-2 text-[15px]"><span className="hud mr-2">Hook</span>{hook}</p>}
-          <div className="flex h-14 rounded-lg overflow-hidden text-[13px]">
-            {shots.map((s, i) => {
-              const st = sumDur(shots.slice(0, i)), d = Number(s.duration) || 0;
-              return (<button key={s.id} onClick={() => document.getElementById('shot-' + s.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })} style={{ flex: Math.max(d, 1) }} title={s.title} className="px-1 flex flex-col justify-center text-left truncate border-r border-black/40 bg-gradient-to-r from-orange-500/40 to-pink-500/40 hover:from-orange-500/60 hover:to-pink-500/60">
-                <span>{st}–{st + d}s</span><span className="opacity-70">Shot {String(i + 1).padStart(2, '0')}</span></button>);
-            })}
-          </div>
-          <div><p className="hud mb-1">Preview strip</p><Carousel items={shots.map((s, i) => <Card key={s.id} index={i} card={{ category: `Shot ${String(i + 1).padStart(2, '0')} · ${s.duration}s`, title: s.title, src: s.broll?.thumb || '', content: <ShotDetail s={s} /> }} />)} /></div>
-          {shots.map((s, i) => (
-            <div id={'shot-' + s.id} key={s.id} className="glass rounded-2xl p-5 grid md:grid-cols-[180px_200px_1fr] xl:grid-cols-[230px_250px_1fr] gap-3">
-              <div><p className="hud mb-1">Visual</p><AnimationStage anim={s.anim} sketch={stageFor(s)} ratio={P.ratio} compact />
-                <p className="text-[13px] opacity-60 mt-1 truncate">{s.anim.primitives.map((p) => p.type).join(' + ')}</p></div>
-              <div><p className="hud mb-1">B-roll</p>
-                {s.broll ? <><Clip it={s.broll} ratio={P.ratio} /><span className="text-[13px] opacity-60 block truncate">{s.broll.credit}</span></>
-                  : <div className="rounded bg-white/5 text-sm p-2 opacity-70" style={{ aspectRatio: P.ratio }}>{s.note || 'Finding B-roll...'}</div>}
-                {s.options.length > 1 && <div className="flex gap-1 mt-1">{s.options.map((o) => <button key={o.link} onClick={() => patch(s.id, { broll: o })} className={`w-6 h-6 rounded overflow-hidden border ${o.link === s.broll?.link ? 'border-orange-400' : 'border-white/10'}`}><img src={o.thumb} alt="" className="w-full h-full object-cover" /></button>)}</div>}
-                <button className="btn text-sm mt-1" onClick={() => findBroll(s.id, s.keywords, (s.page || 1) + 1)}>More footage</button>
-              </div>
-              <div className="space-y-1 text-[15px] min-w-0">
-                <div className="flex gap-2 items-center"><span className="opacity-50">{String(i + 1).padStart(2, '0')}</span>
-                  <input value={s.title} onChange={(e) => patch(s.id, { title: e.target.value })} className="inp flex-1 font-semibold min-w-0" />
-                  <input type="number" value={s.duration} onChange={(e) => patch(s.id, { duration: Number(e.target.value) })} className="inp w-14" />s</div>
-                <div className="flex gap-2 items-center text-sm"><span className="opacity-60">Concept</span>
-                  <input value={s.concept} onChange={(e) => patch(s.id, { concept: e.target.value })} onBlur={(e) => { if (e.target.value && s.anim.emoji !== heuristicAnim(e.target.value).emoji && !s.anim.svg) patch(s.id, { anim: heuristicAnim(e.target.value + ' ' + s.title) }); }} className="inp flex-1 min-w-0" /></div>
-                <input value={s.visual} onChange={(e) => patch(s.id, { visual: e.target.value })} placeholder="Visual" className="inp w-full text-sm" />
-                <textarea value={s.line} onChange={(e) => patch(s.id, { line: e.target.value })} rows={2} className="inp w-full" placeholder="Script line" />
-                {s.fact && <p className="text-sm opacity-70">Fact: {s.fact}</p>}
-                <div className="flex flex-wrap gap-2 text-sm items-center">
-                  <input value={s.keywords.join(', ')} onChange={(e) => patch(s.id, { keywords: e.target.value.split(',').map((k) => k.trim()) })} className="inp flex-1 min-w-[140px]" />
-                  <button className="btn" onClick={() => findBroll(s.id, s.keywords)}>Find footage</button>
-                  <button className="btn" disabled={rb[s.id]} onClick={() => regen(s, i)}>{rb[s.id] ? 'Regenerating...' : 'Regenerate'}</button>
-                  <button className="btn" onClick={() => move(i, -1)}>↑</button><button className="btn" onClick={() => move(i, 1)}>↓</button>
-                  <button className="btn" onClick={() => setShots((a) => a.filter((x) => x.id !== s.id))}>Delete</button>
+        {/* Understanding + Research (bento) */}
+        {(busy.und || und || busy.fact || fact) && (
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+            {(busy.und || und) && (
+              <section className={`surface rise p-6 sm:p-7 ${busy.fact || fact ? '' : 'lg:col-span-2'}`}>
+                <div className="grid gap-6 sm:grid-cols-[1fr_auto]">
+                  <div className="min-w-0 space-y-4">
+                    <p className="label">Understanding</p>
+                    {busy.und && <Sk n={3} />}
+                    {und && (<>
+                      <h2 className="text-[clamp(30px,4vw,44px)] font-semibold tracking-tight">{und.labels[0].name}</h2>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="chip !cursor-default">{und.intent}</span>
+                        <span className="chip !cursor-default"><span className="h-1.5 w-14 overflow-hidden rounded-full bg-white/10"><span className="block h-full rounded-full bg-gradient-to-r from-[#ff6a4d] to-[#8b5cf6]" style={{ width: `${pct}%` }} /></span>{pct}% sure</span>
+                      </div>
+                      <p className="text-[16px] leading-relaxed text-zinc-300">{und.context}</p>
+                      <p className="label">Visual direction · <span className="text-zinc-300">{und.visualDirection}</span></p>
+                      <div className="flex flex-wrap gap-2">{und.keywords.map((k) => <span key={k} className="rounded-full border border-white/[0.07] px-3 py-1 text-[14px] text-zinc-300">{k}</span>)}</div>
+                      {und.labels.length > 1 && (<div className="flex flex-wrap items-center gap-2"><span className="label">Did you mean?</span>
+                        {und.labels.slice(1).map((l) => <button key={l.name} type="button" className="chip" onClick={() => { setIdea(l.name); run({ text: l.name, keepSketch: true }); }}>{l.name} <span className="text-zinc-500">{Math.round(l.confidence * 100)}%</span></button>)}</div>)}
+                    </>)}
+                  </div>
+                  {und && <div style={{ width: P.aspect === '9:16' ? 168 : 320 }} className="max-w-full justify-self-center"><AnimationStage anim={und.anim} sketch={sketch || undefined} ratio={P.ratio} label={`${und.labels[0].name} → ${und.intent}`} /></div>}
                 </div>
+              </section>)}
+            {(busy.fact || fact) && (
+              <section className="surface p-6 sm:p-7">
+                <p className="label mb-3">Research</p>
+                {busy.fact && <Sk n={4} />}
+                {fact && <><p className="text-[16px] leading-relaxed text-zinc-200">{fact.extract}</p>
+                  <p className="label mt-4">Source · {fact.url ? <a className="text-zinc-300 underline underline-offset-2" href={fact.url} target="_blank" rel="noreferrer">{fact.source}{fact.source === 'Wikipedia' ? ' (CC BY-SA)' : ''}</a> : <span className="text-zinc-300">{fact.source}</span>}</p></>}
+              </section>)}
+          </div>)}
+
+        {/* Hooks */}
+        {(busy.plan || hooks.length > 0) && (
+          <section className="space-y-3">
+            <div className="flex items-end justify-between gap-3"><h2 className="text-2xl font-semibold tracking-tight">Choose your hook</h2><span className="label">{hooks.length > 0 && !hook ? 'It becomes the opening line of your script' : busy.script ? 'Writing the script…' : ''}</span></div>
+            {busy.plan && <div className="surface p-6"><Sk n={3} /></div>}
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{hooks.map((h, hi) => {
+              const on = hook === h.text;
+              return (
+                <button key={h.style} type="button" style={{ ['--i' as any]: hi }} onClick={() => pickHook(h.text)} aria-pressed={on} className={`rise hook-card relative rounded-2xl border p-5 text-left transition-colors ${on ? 'border-[#ff6a4d]/60 bg-[#ff6a4d]/[0.07]' : 'border-white/[0.07] bg-[#131316] hover:border-white/20'}`}>
+                  <span className="label flex items-center gap-2">{h.style}{on && <IconCheck size={14} className="text-[#ff6a4d]" />}</span>
+                  <span className="mt-2 block text-[17px] leading-snug text-zinc-100">{h.text}</span>
+                </button>);
+            })}</div>
+          </section>)}
+
+        {/* Content plan: edit, then commit */}
+        {(busy.plan || shots.length > 0) && !committed && (
+          <section className="surface rise space-y-4 p-6 sm:p-7">
+            <div className="flex flex-wrap items-end justify-between gap-2"><h2 className="text-2xl font-semibold tracking-tight">Content plan</h2><span className="label">Edit anything, then commit to the storyboard</span></div>
+            {busy.plan && <Sk n={4} />}
+            {shots.map((s, i) => (
+              <div key={s.id} className="surface-hi space-y-3 p-4">
+                <div className="flex items-end gap-3">
+                  <span className="pb-2 text-lg font-semibold text-zinc-500">{String(i + 1).padStart(2, '0')}</span>
+                  <div className="flex-1"><Fld label="Shot title"><input value={s.title} onChange={(e) => patch(s.id, { title: e.target.value })} className="inp w-full font-semibold" /></Fld></div>
+                  <div className="w-20"><Fld label="Seconds"><input type="number" value={s.duration} onChange={(e) => patch(s.id, { duration: Number(e.target.value) })} className="inp w-full" /></Fld></div>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Fld label="Visual suggestion"><input value={s.visual} onChange={(e) => patch(s.id, { visual: e.target.value })} className="inp w-full" /></Fld>
+                  <Fld label="B-roll suggestion"><input value={s.brollIdea} onChange={(e) => patch(s.id, { brollIdea: e.target.value })} className="inp w-full" /></Fld>
+                  <Fld label="Relevant fact"><input value={s.fact} onChange={(e) => patch(s.id, { fact: e.target.value })} className="inp w-full" /></Fld>
+                  <Fld label="Script line"><input value={s.line} onChange={(e) => patch(s.id, { line: e.target.value })} className="inp w-full" /></Fld>
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" className="chip" disabled={rb[s.id]} onClick={() => regen(s, i)}><IconRefresh size={15} className={rb[s.id] ? 'animate-spin' : ''} />{rb[s.id] ? 'Regenerating…' : 'Regenerate'}</button>
+                  <button type="button" className="chip" onClick={() => setShots((a) => a.filter((x) => x.id !== s.id))}><IconTrash size={15} />Remove</button>
+                </div>
+              </div>))}
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" className="chip" onClick={addShot}><IconPlus size={15} />Add shot</button><span className="flex-1" />
+              <span className="label">Total ~{total}s</span>
+              <button type="button" className="cta" disabled={!shots.length || busy.plan} onClick={() => setCommitted(true)}>Commit to storyboard</button>
+            </div>
+          </section>)}
+
+        {/* Storyboard */}
+        {shots.length > 0 && committed && (
+          <section className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><h2 className="text-2xl font-semibold tracking-tight">Storyboard</h2>
+                <p className={`label mt-1 ${total > target ? '!text-[#ff9d8a]' : ''}`}>~{total}s of {target}s target{shots.length > 0 && Math.abs(total - target) > 2 && <button type="button" className="ml-2 text-zinc-300 underline underline-offset-2" onClick={() => fit(target)}>Fit to target</button>}</p></div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" className="chip" onClick={() => setCommitted(false)}>Edit plan</button>
+                <button type="button" className="chip" onClick={exportMd}><IconDownload size={15} />Export .md</button>
+                <button type="button" className="cta" onClick={() => setPlay(true)}><IconPlayerPlay size={18} />Play storyboard</button>
               </div>
-            </div>))}
-          <button className="btn" onClick={addShot}>+ Add shot</button>
-          {scriptText && (
-            <div className="glass rounded-2xl p-6 text-[15px] space-y-2">
-              <div className="flex justify-between items-center"><h3 className="font-semibold grad">Script</h3><button className="btn text-sm" onClick={() => navigator.clipboard?.writeText(scriptText)}>Copy</button></div>
-              {shots.map((s, i) => s.line && <p key={s.id}><span className="hud mr-2">{sumDur(shots.slice(0, i))}s</span>{s.line}</p>)}
-            </div>)}
-        </section>)}
-    </main>
+            </div>
+            {hook && <p className="surface-hi px-4 py-3 text-[16px]"><span className="label mr-2">Hook</span>{hook}</p>}
+            <div className="flex h-14 gap-1 text-[13px]" aria-label="Timeline">
+              {shots.map((s, i) => {
+                const st = sumDur(shots.slice(0, i)), d = Number(s.duration) || 0;
+                return (<button key={s.id} type="button" onClick={() => document.getElementById('shot-' + s.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })} style={{ flex: Math.max(d, 1), ['--i' as any]: Math.min(i, 8) }} title={s.title}
+                  className="rise flex min-w-0 flex-col justify-center overflow-hidden rounded-xl border border-white/[0.08] bg-[linear-gradient(135deg,rgba(255,106,77,.28),rgba(139,92,246,.28))] px-3 text-left transition-colors hover:bg-[linear-gradient(135deg,rgba(255,106,77,.45),rgba(139,92,246,.45))]">
+                  <span className="truncate font-medium text-white">{st}–{st + d}s</span><span className="truncate text-zinc-300/80">Shot {String(i + 1).padStart(2, '0')}</span></button>);
+              })}
+            </div>
+            {shots.map((s, i) => (
+              <div id={'shot-' + s.id} key={s.id} className="surface rise grid scroll-mt-24 gap-4 p-4 sm:p-5 md:grid-cols-[minmax(150px,200px)_minmax(150px,200px)_minmax(0,1fr)]" style={{ ['--i' as any]: Math.min(i, 8) }}>
+                <div><p className="label mb-1.5">Visual</p><AnimationStage anim={s.anim} sketch={stageFor(s)} ratio={P.ratio} compact />
+                  <p className="mt-1.5 truncate text-[12px] text-zinc-500">{s.anim.primitives.map((p) => p.type).join(' + ')}</p></div>
+                <div><p className="label mb-1.5">B-roll</p>
+                  {s.broll ? <><Clip it={s.broll} ratio={P.ratio} /><span className="mt-1 block truncate text-[12px] text-zinc-500">{s.broll.credit}</span></>
+                    : <div className="surface-hi flex items-center p-3 text-[13px] text-zinc-500" style={{ aspectRatio: P.ratio }}>{s.note || 'Finding B-roll…'}</div>}
+                  {s.options.length > 1 && <div className="mt-2 flex gap-1.5">{s.options.map((o) => <button key={o.link} type="button" onClick={() => patch(s.id, { broll: o })} aria-label="Use this footage" className={`h-7 w-7 overflow-hidden rounded-md border ${o.link === s.broll?.link ? 'border-[#ff6a4d]' : 'border-white/10'}`}><img src={o.thumb} alt="" className="h-full w-full object-cover" /></button>)}</div>}
+                  <button type="button" className="chip mt-2 !px-3 !py-1 text-[13px]" onClick={() => findBroll(s.id, s.keywords, (s.page || 1) + 1)}>More footage</button>
+                </div>
+                <div className="min-w-0 space-y-2.5">
+                  <div className="flex items-center gap-2"><span className="w-7 text-lg font-semibold text-zinc-500">{String(i + 1).padStart(2, '0')}</span>
+                    <input value={s.title} onChange={(e) => patch(s.id, { title: e.target.value })} className="inp min-w-0 flex-1 font-semibold" aria-label="Shot title" />
+                    <input type="number" value={s.duration} onChange={(e) => patch(s.id, { duration: Number(e.target.value) })} className="inp w-16" aria-label="Seconds" /><span className="label">s</span></div>
+                  <div className="flex items-center gap-2"><span className="label w-14 shrink-0">Concept</span>
+                    <input value={s.concept} onChange={(e) => patch(s.id, { concept: e.target.value })} onBlur={(e) => { if (e.target.value && s.anim.emoji !== heuristicAnim(e.target.value).emoji && !s.anim.svg) patch(s.id, { anim: heuristicAnim(e.target.value + ' ' + s.title) }); }} className="inp min-w-0 flex-1" /></div>
+                  <input value={s.visual} onChange={(e) => patch(s.id, { visual: e.target.value })} placeholder="Visual" className="inp w-full" aria-label="Visual" />
+                  <textarea value={s.line} onChange={(e) => patch(s.id, { line: e.target.value })} rows={2} className="inp w-full" placeholder="Script line" aria-label="Script line" />
+                  {s.fact && <p className="text-[14px] text-zinc-400"><span className="label mr-1">Fact</span>{s.fact}</p>}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input value={s.keywords.join(', ')} onChange={(e) => patch(s.id, { keywords: e.target.value.split(',').map((k) => k.trim()) })} className="inp min-w-[140px] flex-1" aria-label="B-roll keywords" />
+                    <button type="button" className="chip" onClick={() => findBroll(s.id, s.keywords)}>Find footage</button>
+                    <button type="button" className="chip" disabled={rb[s.id]} onClick={() => regen(s, i)}><IconRefresh size={15} className={rb[s.id] ? 'animate-spin' : ''} />{rb[s.id] ? 'Regenerating…' : 'Regenerate'}</button>
+                    <button type="button" className="iconbtn" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up"><IconArrowUp size={16} /></button>
+                    <button type="button" className="iconbtn" onClick={() => move(i, 1)} disabled={i === shots.length - 1} aria-label="Move down"><IconArrowDown size={16} /></button>
+                    <button type="button" className="iconbtn" onClick={() => setShots((a) => a.filter((x) => x.id !== s.id))} aria-label="Delete shot"><IconTrash size={16} /></button>
+                  </div>
+                </div>
+              </div>))}
+            <button type="button" className="chip" onClick={addShot}><IconPlus size={15} />Add shot</button>
+            {scriptText && (
+              <div className="surface space-y-2 p-6">
+                <div className="flex items-center justify-between"><h3 className="text-lg font-semibold">Script</h3><button type="button" className="chip" onClick={() => navigator.clipboard?.writeText(scriptText)}>Copy</button></div>
+                {shots.map((s, i) => s.line && <p key={s.id} className="text-[16px] leading-relaxed text-zinc-200"><span className="label mr-3 tabular-nums">{sumDur(shots.slice(0, i))}s</span>{s.line}</p>)}
+              </div>)}
+          </section>)}
+      </main>
+      {play && shots.length > 0 && <Animatic shots={shots} ratio={P.ratio} sketchFor={stageFor} onClose={() => setPlay(false)} />}
+    </div>
   );
 }
-
-const ShotDetail = ({ s }: { s: Shot }) => (
-  <div className="space-y-3 text-[15px] md:text-base">
-    <p><span className="hud mr-2">Script</span>{s.line || '—'}</p>
-    <p><span className="hud mr-2">Visual</span>{s.visual || '—'}</p>
-    <p><span className="hud mr-2">Fact</span>{s.fact || '—'}</p>
-    <p><span className="hud mr-2">B-roll</span>{s.broll ? <a className="underline" href={s.broll.link} target="_blank" rel="noreferrer">{s.broll.credit}</a> : s.brollIdea || '—'}</p>
-  </div>
-);

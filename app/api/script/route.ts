@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   if (!Array.isArray(shots) || !shots.length) return NextResponse.json({ error: 'shots missing' }, { status: 400 });
   const prompt = `Idea: "${String(idea).slice(0, 500)}". Concept: ${concept || ''}. Selected hook: "${hook}". Facts (only source for factual claims): ${facts || 'none'}
 Shots (in order, with seconds): ${JSON.stringify(shots)}
-Write ONE concise, creator-friendly script line per shot (speakable within that shot's duration), same language as the idea. The first line must open with the selected hook. Do not invent facts.
+Write ONE script line per shot, same language as the idea. Rules: spoken, conversational voice (like a creator talking to camera); about 2.5 spoken words per second of that shot's duration (never longer); one clear idea per shot; concrete words, no filler or clichés, no emojis or hashtags; do not repeat the fact word for word, make it vivid; vary how lines start; the first line opens with the selected hook, the last line lands a payoff or takeaway. Do not invent facts.
 Return ONLY a JSON array of exactly ${shots.length} strings.`;
   try {
     const lines = await geminiJson([{ text: prompt }], 0.6, 'script');

@@ -8,7 +8,7 @@ let cached: { t: number; v: string } | null = null;
 export async function GET(req: Request) {
   const locked = guard(req);
   if (locked) return locked;
-  const base = { ok: true, ai: !!process.env.GEMINI_API_KEY && !!process.env.GEMINI_MODEL, footage: !!process.env.PIXABAY_API_KEY };
+  const base = { ok: true, ai: !!process.env.GEMINI_API_KEY && !!process.env.GEMINI_MODEL, footage: true };
   if (new URL(req.url).searchParams.get('deep') !== '1') return NextResponse.json(base);
   if (cached && Date.now() - cached.t < 30000) return NextResponse.json({ ...base, aiStatus: cached.v });
   let v = 'ok';

@@ -11,15 +11,15 @@ export const Timeline = ({ data, heading, sub }: { data: { title: string; conten
   const heightTransform = useTransform(scrollYProgress, [0, 1], [0, height]);
   const opacityTransform = useTransform(scrollYProgress, [0, 0.1], [0, 1]);
   return (
-    <div className="w-full bg-white dark:bg-neutral-950 font-sans md:px-10" ref={containerRef}>
-      <div className="max-w-7xl mx-auto py-20 px-4 md:px-8 lg:px-10">
+    <div className="w-full bg-[#09090b] font-sans md:px-10" ref={containerRef}>
+      <div className="max-w-7xl mx-auto pt-16 pb-6 px-4 md:px-8 lg:px-10">
         <h2 className="text-3xl md:text-5xl font-bold mb-5 text-black dark:text-white max-w-4xl">{heading}</h2>
         <p className="text-neutral-700 dark:text-neutral-300 text-base md:text-xl max-w-xl">{sub}</p>
       </div>
-      <div ref={ref} className="relative max-w-7xl mx-auto pb-20">
+      <div ref={ref} className="relative max-w-7xl mx-auto pb-12">
         {data.map((item, index) => (
-          <div key={index} className="flex justify-start pt-10 md:pt-40 md:gap-10">
-            <div className="sticky flex flex-col md:flex-row z-40 items-center top-40 self-start max-w-xs lg:max-w-sm md:w-full">
+          <div key={index} className="flex justify-start pt-8 md:pt-24 md:gap-10">
+            <div className="sticky flex flex-col md:flex-row z-40 items-center top-32 self-start max-w-xs lg:max-w-sm md:w-full">
               <div className="h-10 absolute left-3 md:left-3 w-10 rounded-full bg-white dark:bg-black flex items-center justify-center">
                 <div className="h-4 w-4 rounded-full bg-neutral-200 dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 p-2" />
               </div>

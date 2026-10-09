@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { HoveredLink, Menu, MenuItem } from '@/components/ui/navbar-menu';
 import { MacbookScroll } from '@/components/ui/macbook-scroll';
+import { LampContainer } from '@/components/ui/lamp';
+import { motion } from 'motion/react';
 import { CardSpotlight } from '@/components/ui/card-spotlight';
 import { Timeline } from '@/components/ui/timeline';
 import { Card, Carousel } from '@/components/ui/apple-cards-carousel';
@@ -46,7 +48,17 @@ export default function Intro() {
         </Menu>
       </div>
       <a href="/studio" className="btn fixed right-4 top-6 z-50 text-sm bg-black/60">Skip to app →</a>
-      <div className="w-full overflow-hidden bg-[#09090b]"><MacbookScroll src="/intro/screen.png" showGradient={false} title={<TextReveal text="Idea in. Storyboard out." accent="Storyboard" />} /></div>
+      <div className="h-[600px] w-full overflow-hidden bg-[#09090b] sm:h-[640px]">
+        <LampContainer>
+          <motion.div initial={{ opacity: 0.4, y: 60 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.8, ease: 'easeInOut' }} className="flex flex-col items-center text-center">
+            <span className="chip !cursor-default mb-6">Idea → Storyboard in minutes</span>
+            <h1 className="bg-gradient-to-br from-zinc-100 to-zinc-500 bg-clip-text py-2 text-5xl font-semibold tracking-tight text-transparent md:text-7xl">Air Motion Canvas</h1>
+            <p className="mt-4 max-w-xl text-base text-zinc-400 md:text-lg">Type, say or sketch a rough idea. Get the concept, B-roll, research, hooks, a script, and a storyboard you can play.</p>
+            <div className="mt-8 flex flex-wrap justify-center gap-3"><a href="/studio" className="cta">Open Studio</a><a href="#how" className="chip !py-3">How it works</a></div>
+          </motion.div>
+        </LampContainer>
+      </div>
+      <div className="w-full overflow-hidden bg-[#09090b]"><MacbookScroll className="md:pt-10" src="/intro/screen.png" showGradient={false} title={<TextReveal text="Idea in. Storyboard out." accent="Storyboard" />} /></div>
       <section id="how"><Timeline data={steps} heading="How Air Motion Canvas works" sub="From rough idea to storyboard in six steps." /></section>
       <section className="py-16"><div className="mx-auto max-w-7xl px-4"><h2 className="text-3xl font-bold md:text-5xl"><TextReveal text="Made for every platform." /></h2><p className="mt-3 text-base text-zinc-400 md:text-xl">Pick a format, the plan adapts.</p></div>
         <Carousel items={platforms.map((c, i) => <Card key={c.title} card={c} index={i} />)} /></section>

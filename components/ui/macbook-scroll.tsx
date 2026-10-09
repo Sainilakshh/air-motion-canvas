@@ -5,7 +5,7 @@ import { motion, useScroll, useTransform } from "motion/react";
 import { cn } from "@/lib/utils";
 import { IconBrightnessDown, IconBrightnessUp, IconCaretDownFilled, IconCaretLeftFilled, IconCaretRightFilled, IconCaretUpFilled, IconChevronUp, IconCommand, IconMicrophone, IconMoon, IconPlayerSkipForward, IconPlayerTrackNext, IconPlayerTrackPrev, IconSearch, IconTable, IconVolume, IconVolume2, IconVolume3, IconWorld } from "@tabler/icons-react";
 
-export const MacbookScroll = ({ src, showGradient, title, badge }: any) => {
+export const MacbookScroll = ({ src, showGradient, title, badge, className }: any) => {
   const ref = useRef(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const [isMobile, setIsMobile] = useState(false);
@@ -17,7 +17,7 @@ export const MacbookScroll = ({ src, showGradient, title, badge }: any) => {
   const textTransform = useTransform(scrollYProgress, [0, 0.3], [0, 100]);
   const textOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
   return (
-    <div ref={ref} className="flex min-h-[200vh] shrink-0 scale-[0.35] transform flex-col items-center justify-start py-0 [perspective:800px] sm:scale-50 md:scale-100 md:py-80">
+    <div ref={ref} className={cn("flex min-h-[200vh] shrink-0 scale-[0.35] transform flex-col items-center justify-start py-0 [perspective:800px] sm:scale-50 md:scale-100 md:py-80", className)}>
       <motion.h2 style={{ translateY: textTransform, opacity: textOpacity }} className="mb-20 text-center text-4xl font-bold leading-[1.1] tracking-tight text-neutral-800 md:text-7xl dark:text-white">{title}</motion.h2>
       <Lid src={src} scaleX={scaleX} scaleY={scaleY} rotate={rotate} translate={translate} />
       <div className="relative -z-10 h-[22rem] w-[32rem] overflow-hidden rounded-2xl bg-gray-200 dark:bg-[#272729]">
