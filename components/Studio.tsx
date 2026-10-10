@@ -11,6 +11,7 @@ import PipelineRail, { type RailStep } from './studio/PipelineRail';
 import EmptyState from './studio/EmptyState';
 import Animatic from './studio/Animatic';
 import ExportMenu from './studio/ExportMenu';
+import EditorHandoff from './studio/EditorHandoff';
 import { asLang, asTone, type Lang, type Tone } from '@/lib/style';
 import { checkStory } from '@/lib/storyCheck';
 import type { VisualStyle } from '@/lib/types';
@@ -25,10 +26,10 @@ const NO_FOOTAGE = 'No relevant footage found — try another keyword.';
 const UNCLEAR = "Couldn't confidently understand the drawing — try a simpler sketch, or pick an alternative below.";
 const code = () => { try { return localStorage.getItem('amc.code') || ''; } catch { return ''; } };
 const HINT: Record<string, string> = {
-  QUOTA: 'Gemini quota reached — wait a minute and retry.', NOT_FOUND: 'Model not found — check GEMINI_MODEL on the server.',
-  BAD_KEY: 'Gemini key rejected — check GEMINI_API_KEY on the server.', NO_KEY: 'Server is missing GEMINI_API_KEY.', NO_MODEL: 'Server is missing GEMINI_MODEL.',
+  QUOTA: 'Gemini quota/rate limit reached — wait, then check AI Studio → Usage and limits; repeated retries will not fix a daily quota.', RATE: 'This app has reached its request limit — wait one minute before retrying.', NOT_FOUND: 'Model not found — check GEMINI_MODEL on the server.',
+  BAD_KEY: 'Gemini key rejected or API access is not enabled — check GEMINI_API_KEY and the key project.', NO_KEY: 'Server is missing GEMINI_API_KEY.', NO_MODEL: 'Server is missing GEMINI_MODEL.',
   TIMEOUT: 'The AI took too long — retry.', EMPTY: 'The AI returned no answer — try rephrasing.', BAD_JSON: 'The AI answer was malformed — retry.',
-  UPSTREAM: 'Gemini is having trouble — retry shortly.', NETWORK: 'Server could not reach Gemini — retry.',
+  UPSTREAM: 'Gemini is having trouble — retry shortly.', NETWORK: 'Server could not reach Gemini — check the server network.', REQUEST: 'Gemini rejected the request — check the configured model and API access.', ERROR: 'Check the server log and Gemini API configuration for the underlying error.',
 };
 let lastAiCode = '';
 const uid = () => Math.random().toString(36).slice(2, 8);
@@ -84,6 +85,7 @@ export default function Studio() {
   useEffect(() => { const el = chatBox.current; if (el) el.scrollTop = el.scrollHeight; }, [chat.length, refining]);
   const [busy, setBusy] = useState({ und: false, fact: false, plan: false, script: false });
   const [rb, setRb] = useState<Record<string, boolean>>({});
+  const [picking, setPicking] = useState<Record<string, boolean>>({});
   const [msg, setMsg] = useState<string[]>([]);
   const [failDraw, setFailDraw] = useState(false);
   const [platform, setPlatform] = useState<PK>('reel');
@@ -121,7 +123,8 @@ export default function Studio() {
   // Ek hi banner: locked/AI-down ke messages ek dusre ko replace karte hain, stack nahi hote
   const isSoft = (y: string) => y.startsWith(AI_DOWN) || y === NEED_CODE;
   const warn = (m0: string) => {
-    const m = m0 === AI_DOWN && HINT[lastAiCode] ? AI_DOWN + ' ' + HINT[lastAiCode] : m0;
+    const detail = HINT[lastAiCode] || (lastAiCode ? `Server error code: ${lastAiCode}. Check the server log and Gemini API configuration.` : '');
+    const m = m0 === AI_DOWN && detail ? AI_DOWN + ' ' + detail : m0;
     setMsg((x) => (x.includes(m) ? x : isSoft(m) ? [...x.filter((y) => !isSoft(y)), m] : [...x, m]));
   };
   const setB = (k: keyof typeof busy, v: boolean) => setBusy((b) => ({ ...b, [k]: v }));
@@ -132,14 +135,16 @@ export default function Studio() {
   const aiPick = async (id: string, items: Item[]) => {
     const sh = shotsRef.current.find((x) => x.id === id);
     if (!sh || items.length < 2 || !aiRef.current) return;
+    setPicking((x) => ({ ...x, [id]: true }));
     try {
       const d = await post('/api/pick', { concept: sh.concept, visual: sh.visual, line: sh.line, thumbs: items.map((i) => i.thumb) });
-      if (!Array.isArray(d.order)) return;
+      if (!Array.isArray(d.order)) { if (d.code) { lastAiCode = d.code; warn(AI_DOWN); } return; }
       const ranked = items.map((it, i) => ({ it, sc: Number.isFinite(Number(d.order[i])) ? Number(d.order[i]) : -1, i })).sort((a, b) => b.sc - a.sc || a.i - b.i);
       const good = ranked.filter((x) => x.sc >= 3).map((x) => x.it);
       const out = good.length >= 2 ? good : ranked.map((x) => x.it);
       setShots((a) => a.map((x) => (x.id === id && x.options === items ? { ...x, options: out, broll: out[0], pick: d.reason ? `AI pick: ${d.reason}` : 'AI pick' } : x)));
-    } catch {}
+    } catch { warn(AI_DOWN); }
+    finally { setPicking((x) => ({ ...x, [id]: false })); }
   };
   const frameOf = (url: string) => new Promise<string>((res) => {
     const v = document.createElement('video'); v.muted = true; v.preload = 'auto'; v.src = url;
@@ -165,7 +170,7 @@ export default function Studio() {
       const items: Item[] = d.items || [];
       if (!items.length && page > 1) { patch(id, { note: 'No more footage — try another keyword.', page: page - 1 }); return; }
       patch(id, { options: items, broll: items[0] || null, pick: undefined, note: d.error === 'locked' ? 'Access code needed for live B-roll.' : items.length ? '' : NO_FOOTAGE });
-      if (items.length > 1) setTimeout(() => aiPick(id, items), 0);
+      // Avoid one extra Gemini vision call per shot during story generation; AI ranking is user-triggered.
     } catch { patch(id, { note: NO_FOOTAGE }); }
   };
 
@@ -478,6 +483,7 @@ export default function Studio() {
                     : <div className="surface-hi flex items-center p-3 text-[13px] text-zinc-500" style={{ aspectRatio: P.ratio }}>{s.note || 'Finding B-roll…'}</div>}
                   {s.options.length > 1 && <div className="mt-2 flex gap-1.5">{s.options.map((o) => <button key={o.link} type="button" onClick={() => patch(s.id, { broll: o })} aria-label="Use this footage" className={`h-7 w-7 overflow-hidden rounded-md border ${o.link === s.broll?.link ? 'border-[#ff6a4d]' : 'border-white/10'}`}><img src={o.thumb} alt="" className="h-full w-full object-cover" /></button>)}</div>}
                   <div className="mt-2 flex flex-wrap gap-1.5"><button type="button" className="chip !px-3 !py-1 text-[13px]" onClick={() => findBroll(s.id, s.keywords, (s.page || 1) + 1)}>More footage</button>
+                    {s.options.length > 1 && <button type="button" className="chip !px-3 !py-1 text-[13px]" disabled={picking[s.id] || !aiRef.current} onClick={() => aiPick(s.id, s.options)}>{picking[s.id] ? 'AI choosing…' : 'AI choose'}</button>}
                     <label className="chip cursor-pointer !px-3 !py-1 text-[13px]"><IconUpload size={14} />Upload<input type="file" accept="video/*,image/*" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadClip(s.id, f); e.target.value = ''; }} /></label></div>
                 </div>
                 <div className="min-w-0 space-y-2.5">
@@ -524,6 +530,7 @@ export default function Studio() {
                   </div>
                 </div>
               </div>)}
+            <EditorHandoff shots={shots} title={idea || und?.labels[0].name || 'storyboard'} />
           </section>)}
       </main>
       {play && shots.length > 0 && <Animatic shots={shots} ratio={P.ratio} sketchFor={stageFor} lang={lang} visualStyle={visualStyle} onClose={() => setPlay(false)} />}

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createHash } from 'crypto';
-import { guard } from '@/lib/auth';
+import { fail, guard } from '@/lib/auth';
 import { geminiJson } from '@/lib/gemini';
 import { okHost } from '@/lib/mediaHosts';
 export const runtime = 'nodejs';
@@ -41,6 +41,6 @@ Return ONLY JSON: {"scores":[${ok.length} numbers],"best":index,"reason":"max 8 
     return NextResponse.json(out);
   } catch (e: any) {
     console.error('[pick]', e?.message || e);
-    return NextResponse.json({ order: null });
+    return fail(e);
   }
 }

@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconChevronDown, IconDownload, IconX } from '@tabler/icons-react';
 import { useOutsideClick } from '@/lib/use-outside-click';
-import { download, slug, toCsv, toEdl, toSrt } from '@/lib/export';
+import { download, slug, toCsv } from '@/lib/export';
 import { exportVideo, type Progress } from '@/lib/videoExport';
 import type { Shot } from '@/lib/types';
 
@@ -47,11 +47,9 @@ export default function ExportMenu(p: Props) {
       {open && (
         <div className="absolute right-0 z-30 mt-2 w-[300px] max-w-[88vw] rounded-2xl border border-white/[0.08] bg-[#131316] p-2 shadow-2xl">
           <button type="button" className={item} onClick={start}><span className="text-[15px] font-medium text-white">Video (.webm)</span><span className="label">Footage + captions burned in, silent. Takes as long as the video.</span></button>
-          <button type="button" className={item} onClick={() => { download(name + '.srt', toSrt(p.shots), 'application/x-subrip;charset=utf-8'); setOpen(false); }}><span className="text-[15px] font-medium text-white">Captions (.srt)</span><span className="label">Import in CapCut, Premiere, YouTube, Instagram</span></button>
           <button type="button" className={item} onClick={() => { download(name + '-shotlist.csv', toCsv(p.shots), 'text/csv;charset=utf-8'); setOpen(false); }}><span className="text-[15px] font-medium text-white">Shot list (.csv)</span><span className="label">Timing, script, footage links, credits</span></button>
           <button type="button" className={item} onClick={() => { p.onMd(); setOpen(false); }}><span className="text-[15px] font-medium text-white">Storyboard (.md)</span><span className="label">Full document</span></button>
           <button type="button" className={item} onClick={() => { download(name + '-script.txt', p.script); setOpen(false); }}><span className="text-[15px] font-medium text-white">Script (.txt)</span><span className="label">Just the voiceover lines</span></button>
-          <button type="button" className={item} onClick={() => { download(name + '.edl', toEdl(p.shots, p.title)); setOpen(false); }}><span className="text-[15px] font-medium text-white">Editor timeline (.edl)</span><span className="label">Cuts with timings for Premiere / DaVinci Resolve</span></button>
           <button type="button" className={item} onClick={social} disabled={busySocial || !p.script.trim()}><span className="text-[15px] font-medium text-white">{busySocial ? 'Writing…' : 'Posting pack (.txt)'}</span><span className="label">AI titles, caption and hashtags from your script</span></button>
           {note && <p className="label px-3 pb-2 pt-1">{note}</p>}
         </div>)}

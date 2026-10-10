@@ -126,9 +126,7 @@ export default function Intro() {
       <div className="h-[600px] w-full overflow-hidden bg-[#09090b] sm:h-[640px]">
         <LampContainer>
           <motion.div initial={{ opacity: 0.4, y: 60 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.8, ease: 'easeInOut' }} className="flex flex-col items-center text-center">
-            <span className="chip !cursor-default mb-6">For creators and video editors</span>
             <h1 className="bg-gradient-to-br from-zinc-100 to-zinc-500 bg-clip-text py-2 text-5xl font-semibold tracking-tight text-transparent md:text-7xl">Air Motion Canvas</h1>
-            <p className="mt-4 max-w-xl text-base text-zinc-400 md:text-lg">Turn a rough idea, in English, Hindi or Hinglish, into an editor-ready package: hook, script, B-roll per shot, captions and a timeline for Premiere or DaVinci.</p>
             <div className="mt-8 flex flex-wrap justify-center gap-3"><a href="/studio" className="cta">Open Studio</a><a href="#how" className="chip !py-3">How it works</a></div>
           </motion.div>
         </LampContainer>
